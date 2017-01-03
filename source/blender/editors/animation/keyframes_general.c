@@ -131,11 +131,6 @@ bool delete_fcurve_keys(FCurve *fcu)
 			float ty = (Q0[1] - P2[1]) / (Q1[1] - P2[1]);
 			float t = (tx + ty) / 2;
 
-			// another t
-			float tx2 = (Q1[0] - Q0[0]) / (Q1[0] - P2[0]);
-			float ty2 = (Q1[1] - Q0[1]) / (Q1[1] - P2[1]);
-			float t2 = (tx2 + ty2) / 2;
-
 			fcu->bezt[i - 1].vec[2][0] = (P1[0] - P0[0] * (1 - t)) / t;
 			fcu->bezt[i - 1].vec[2][1] = (P1[1] - P0[1] * (1 - t)) / t;
 			fcu->bezt[i + 1].vec[0][0] = (Q2[0] - Q3[0] * t) / (1 - t);
