@@ -293,7 +293,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		if(!hit) {
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, emission_sd, state, ray);
+			float3 L_background = indirect_background(kg, emission_sd, state, ray, NULL, 0);
 			path_radiance_accum_background(L,
 			                               state,
 			                               throughput,
@@ -312,7 +312,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		                      &isect,
 		                      ray);
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, state, PRNG_BSDF);
-		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT);
+		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT, NULL, 0);
 #ifdef __BRANCHED_PATH__
 		shader_merge_closures(sd);
 #endif  /* __BRANCHED_PATH__ */
@@ -622,7 +622,7 @@ ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray);
+			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray, buffer, sample);
 			path_radiance_accum_background(&L, &state, throughput, L_background);
 #endif  /* __BACKGROUND__ */
 
@@ -635,7 +635,7 @@ ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
 		/* setup shading */
 		shader_setup_from_ray(kg, &sd, &isect, &ray);
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, &state, PRNG_BSDF);
-		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN);
+		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN, buffer, sample);
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_SHADOW_CATCHER)) {
@@ -643,7 +643,7 @@ ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
 				state.flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_SHADOW_CATCHER_ONLY);
 				state.catcher_object = sd.object;
 				if(!kernel_data.background.transparent) {
-					L.shadow_color = indirect_background(kg, &emission_sd, &state, &ray);
+					L.shadow_color = indirect_background(kg, &emission_sd, &state, &ray, buffer, sample);
 				}
 			}
 		}

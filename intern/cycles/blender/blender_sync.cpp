@@ -525,55 +525,59 @@ PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
 	return PASS_NONE;
 }
 
-array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
-	                                        BL::SceneRenderLayer& b_srlay)
+void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
+	                        BL::SceneRenderLayer& b_srlay,
+	                        bool advanced_shading)
 {
-	array<Pass> passes;
-	Pass::add(PASS_COMBINED, passes);
+	PassSettings passes;
 
-	/* loop over passes */
-	BL::RenderLayer::passes_iterator b_pass_iter;
+	if(advanced_shading) {
+		/* loop over passes */
+		BL::RenderLayer::passes_iterator b_pass_iter;
 
-	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-		BL::RenderPass b_pass(*b_pass_iter);
-		PassType pass_type = get_pass_type(b_pass);
+		for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+			BL::RenderPass b_pass(*b_pass_iter);
+			PassType pass_type = get_pass_type(b_pass);
 
-		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
-			continue;
-		if(pass_type != PASS_NONE)
-			Pass::add(pass_type, passes);
-	}
+			if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
+				continue;
+			if(pass_type != PASS_NONE)
+				passes.add(pass_type);
+		}
 
-	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+		PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
 #ifdef __KERNEL_DEBUG__
-	if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
-		b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
-		Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
-		b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
-		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
-	}
-	if(get_boolean(crp, "pass_debug_bvh_intersections")) {
-		b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
-		Pass::add(PASS_BVH_INTERSECTIONS, passes);
-	}
-	if(get_boolean(crp, "pass_debug_ray_bounces")) {
-		b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
-		Pass::add(PASS_RAY_BOUNCES, passes);
-	}
+		if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
+			b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
+			Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
+		}
+		if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
+			b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
+			Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
+		}
+		if(get_boolean(crp, "pass_debug_bvh_intersections")) {
+			b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
+			Pass::add(PASS_BVH_INTERSECTIONS, passes);
+		}
+		if(get_boolean(crp, "pass_debug_ray_bounces")) {
+			b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
+			Pass::add(PASS_RAY_BOUNCES, passes);
+		}
 #endif
 
-	RNA_BEGIN(&crp, b_aov, "aovs") {
-		bool is_color = RNA_enum_get(&b_aov, "type");
-		string name = get_string(b_aov, "name");
-		AOV aov = { ustring(name), 9999, is_color };
-		passes.add(aov);
-		string passname = string_printf("AOV %s", name.c_str());
-		b_engine.add_pass(is_color ? 3 : 1, passname.c_str(), b_srlay.name().c_str(), NULL, is_color ? "RGB" : "X");
-	} RNA_END
+		RNA_BEGIN(&crp, b_aov, "aovs") {
+			bool is_color = RNA_enum_get(&b_aov, "type");
+			string name = get_string(b_aov, "name");
+			AOV aov = { ustring(name), 9999, is_color };
+			passes.add(aov);
+			string passname = string_printf("AOV %s", name.c_str());
+			b_engine.add_pass(passname.c_str(), is_color ? 3 : 1, is_color ? "RGB" : "X", b_srlay.name().c_str());
+		} RNA_END
 
-	return passes;
+		scene->film->pass_alpha_threshold = b_srlay.pass_alpha_threshold();
+		scene->film->tag_passes_update(scene, passes);
+		scene->film->tag_update(scene);
+	}
 }
 
 /* Scene Parameters */
