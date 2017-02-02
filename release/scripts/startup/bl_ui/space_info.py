@@ -76,6 +76,8 @@ class INFO_MT_editor_menus(Menu):
     bl_idname = "INFO_MT_editor_menus"
     bl_label = ""
 
+    menus = ["INFO_MT_file", "INFO_MT_render", "INFO_MT_game", "INFO_MT_window", "INFO_MT_help"]
+
     def draw(self, context):
         self.draw_menus(self.layout, context)
 
@@ -84,15 +86,16 @@ class INFO_MT_editor_menus(Menu):
         scene = context.scene
         rd = scene.render
 
-        layout.menu("INFO_MT_file")
-
+        menus = INFO_MT_editor_menus.menus[:]
         if rd.use_game_engine:
-            layout.menu("INFO_MT_game")
+            if "INFO_MT_render" in menus:
+                menus.remove("INFO_MT_render")
         else:
-            layout.menu("INFO_MT_render")
+            if "INFO_MT_game" in menus:
+                menus.remove("INFO_MT_game")
 
-        layout.menu("INFO_MT_window")
-        layout.menu("INFO_MT_help")
+        for menu in menus:
+            layout.menu(menu)
 
 
 class INFO_MT_file(Menu):
