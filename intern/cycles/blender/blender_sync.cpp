@@ -544,8 +544,8 @@ array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
 			Pass::add(pass_type, passes);
 	}
 
-#ifdef __KERNEL_DEBUG__
 	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+#ifdef __KERNEL_DEBUG__
 	if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
 		b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
 		Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
@@ -563,6 +563,15 @@ array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
 		Pass::add(PASS_RAY_BOUNCES, passes);
 	}
 #endif
+
+	RNA_BEGIN(&crp, b_aov, "aovs") {
+		bool is_color = RNA_enum_get(&b_aov, "type");
+		string name = get_string(b_aov, "name");
+		AOV aov = { ustring(name), 9999, is_color };
+		passes.add(aov);
+		string passname = string_printf("AOV %s", name.c_str());
+		b_engine.add_pass(is_color ? 3 : 1, passname.c_str(), b_srlay.name().c_str(), NULL, is_color ? "RGB" : "X");
+	} RNA_END
 
 	return passes;
 }
