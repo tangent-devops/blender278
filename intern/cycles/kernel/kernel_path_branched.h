@@ -572,10 +572,13 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 				&sd, &indirect_sd, &emission_sd, throughput, 1.0f, &hit_state, &L);
 
 			/* continue in case of transparency */
-			throughput *= shader_bsdf_transparency(kg, &sd);
+			float3 transparency = shader_bsdf_transparency(kg, &sd);
+			throughput *= transparency;
 
 			if(is_zero(throughput))
 				break;
+			
+			state.matte_weight *= average(transparency);
 		}
 
 		/* Update Path State */

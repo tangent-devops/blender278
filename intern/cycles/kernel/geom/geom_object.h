@@ -32,7 +32,8 @@ enum ObjectTransform {
 	OBJECT_INVERSE_TRANSFORM = 4,
 	OBJECT_TRANSFORM_MOTION_POST = 4,
 	OBJECT_PROPERTIES = 8,
-	OBJECT_DUPLI = 9
+	OBJECT_DUPLI = 9,
+	OBJECT_CRYPTOMATTE = 11
 };
 
 enum ObjectVectorTransform {
@@ -327,6 +328,18 @@ ccl_device_inline uint object_patch_map_offset(KernelGlobals *kg, int object)
 ccl_device int shader_pass_id(KernelGlobals *kg, const ShaderData *sd)
 {
 	return kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK)*SHADER_SIZE + 1);
+}
+
+/* Cryptomatte ID */
+
+ccl_device_inline float object_cryptomatte_id(KernelGlobals *kg, int object)
+{
+	if(object == OBJECT_NONE)
+		return 0;
+	
+	int offset = object*OBJECT_SIZE + OBJECT_CRYPTOMATTE;
+	float4 f = kernel_tex_fetch(__objects, offset);
+	return f.x;
 }
 
 /* Particle data from which object was instanced */
