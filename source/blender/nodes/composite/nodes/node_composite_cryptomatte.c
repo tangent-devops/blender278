@@ -1,0 +1,88 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version. 
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2016 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Lukas Stockner
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/nodes/composite/nodes/node_composite_cryptomatte.c
+ *  \ingroup cmpnodes
+ */
+
+#include "node_composite_util.h"
+
+// I can't be bothered to do string operations without std::string
+extern void cryptomatte_add(NodeCryptomatte* n, float f);
+extern void cryptomatte_remove(NodeCryptomatte*n, float f);
+
+static bNodeSocketTemplate inputs[] = {
+	{	SOCK_RGBA, 1, N_("Pass 1"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, N_("Pass 2"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, N_("Pass 3"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, N_("Pass 4"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, N_("Pass 5"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, N_("Pass 6"),			0.0f, 0.0f, 0.0f, 1.0f},
+	{	-1, 0, ""	}
+};
+static bNodeSocketTemplate outputs[] = {
+	{	SOCK_RGBA, 0, N_("Mask")},
+	{	-1, 0, ""	}
+};
+
+void ntreeCompositCryptomatteSyncFromAdd(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	NodeCryptomatte *n = node->storage;
+	if(n->add[0] != 0.f || n->add[1] != 0.f) {
+		cryptomatte_add(n, n->add[0] > n->add[1] ? n->add[0] : -n->add[1]);
+		n->add[0] = 0.f;
+		n->add[1] = 0.f;
+	}
+}
+
+void ntreeCompositCryptomatteSyncFromRemove(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	NodeCryptomatte *n = node->storage;
+	if(n->remove[0] != 0.f || n->remove[1] != 0.f) {
+		cryptomatte_remove(n, n->remove[0] > n->remove[1] ? n->remove[0] : -n->remove[1]);
+		n->remove[0] = 0.f;
+		n->remove[1] = 0.f;
+	}
+}
+
+
+static void init(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	NodeCryptomatte *user = MEM_callocN(sizeof(NodeCryptomatte), "cryptomatte user");
+	node->storage = user;
+}
+
+void register_node_type_cmp_cryptomatte(void)
+{
+	static bNodeType ntype;
+
+	cmp_node_type_base(&ntype, CMP_NODE_CRYPTOMATTE, "Cryptomatte", NODE_CLASS_CONVERTOR, 0);
+	node_type_socket_templates(&ntype, inputs, outputs);
+	node_type_init(&ntype, init);
+	node_type_storage(&ntype, "NodeCryptomatte", node_free_standard_storage, node_copy_standard_storage);
+	nodeRegisterType(&ntype);
+}

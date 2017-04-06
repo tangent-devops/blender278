@@ -2486,6 +2486,25 @@ static void node_composit_buts_sunbeams(uiLayout *layout, bContext *UNUSED(C), P
 	uiItemR(layout, ptr, "ray_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *split, *col, *row;
+	
+ 	uiItemR(layout, ptr, "matte_id", 0, NULL, ICON_NONE);
+	
+	split = uiLayoutSplit(layout, 0.0f, false);
+	col = uiLayoutColumn(split, false);
+	uiTemplateColorPicker(col, ptr, "add", 1, 1, 0, 1);
+	row = uiLayoutRow(col, false);
+	uiItemR(row, ptr, "add", 0, NULL, ICON_NONE);
+	
+	col = uiLayoutColumn(split, false);
+	uiTemplateColorPicker(col, ptr, "remove", 1, 1, 1, 1);
+	row = uiLayoutRow(col, false);
+	uiItemR(row, ptr, "remove", 0, NULL, ICON_NONE);
+}
+
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
@@ -2712,6 +2731,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_SUNBEAMS:
 			ntype->draw_buttons = node_composit_buts_sunbeams;
+			break;
+		case CMP_NODE_CRYPTOMATTE:
+			ntype->draw_buttons = node_composit_buts_cryptomatte;
 			break;
 	}
 }
