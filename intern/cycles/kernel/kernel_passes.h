@@ -63,6 +63,9 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 ccl_device_inline void kernel_write_id_slots(ccl_global float *buffer, int num_slots, float id, float weight, bool init)
 {
 	kernel_assert(id != ID_NONE);
+	if(weight == 0.f) {
+		return;
+	}
 
 	if(init) {
 		for(int slot = 0; slot < num_slots; slot++) {
