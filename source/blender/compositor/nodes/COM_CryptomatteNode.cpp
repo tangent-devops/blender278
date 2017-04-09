@@ -24,6 +24,7 @@
 #include "COM_CryptomatteOperation.h"
 #include "COM_SetAlphaOperation.h"
 #include "COM_ConvertOperation.h"
+#include "BLI_string.h"
 #include <iterator>
 
 CryptomatteNode::CryptomatteNode(bNode *editorNode) : Node(editorNode)
@@ -204,7 +205,7 @@ extern "C" void cryptomatte_add(NodeCryptomatte* n, float f)
 		size_t last = token.find_last_not_of(' ');
 		token = token.substr(first, (last-first+1));
 		if (*token.begin() == '<' && *(--token.end()) == '>') {
-			if(f == atof(token.substr(1, token.length()-2).c_str()))
+			if(std::string(number) == token)
 				return;
 		} else {
 			uint32_t hash = 0;
@@ -213,8 +214,11 @@ extern "C" void cryptomatte_add(NodeCryptomatte* n, float f)
 				return;
 		}
 	}
-	strlcat(n->matte_id, ", ", sizeof(n->matte_id));
-	strlcat(n->matte_id, number, sizeof(n->matte_id));
+
+	std::string matte_id = n->matte_id;
+	matte_id += ", ";
+	matte_id += number;
+	BLI_strncpy(n->matte_id, matte_id.c_str(), sizeof(n->matte_id));
 }
 
 extern "C" void cryptomatte_remove(NodeCryptomatte*n, float f)
@@ -252,7 +256,7 @@ extern "C" void cryptomatte_remove(NodeCryptomatte*n, float f)
 		}
 		os << token;
 	}
-	strlcpy(n->matte_id, os.str().c_str(), sizeof(n->matte_id));
+	BLI_strncpy(n->matte_id, os.str().c_str(), sizeof(n->matte_id));
 }
 
 void CryptomatteNode::convertToOperations(NodeConverter &converter, const CompositorContext &/*context*/) const

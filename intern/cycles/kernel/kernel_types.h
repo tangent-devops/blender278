@@ -42,7 +42,7 @@ CCL_NAMESPACE_BEGIN
 #define RAMP_TABLE_SIZE		256
 #define SHUTTER_TABLE_SIZE		256
 #define PARTICLE_SIZE 		5
-#define SHADER_SIZE		5
+#define SHADER_SIZE		6
 #define ID_SLOT_SIZE	2
 
 #define BSSRDF_MIN_RADIUS			1e-8f
@@ -397,6 +397,12 @@ typedef enum PassType {
 } PassType;
 
 #define PASS_ALL (~0)
+
+typedef enum CryptomatteType {
+	CRYPT_NONE = 0,
+	CRYPT_OBJECT = (1 << 31),
+	CRYPT_MATERIAL = (1 << 30),
+} CryptomatteType;
 
 typedef enum BakePassFilter {
 	BAKE_FILTER_NONE = 0,
@@ -1138,7 +1144,7 @@ typedef struct KernelFilm {
 	int pass_shadow;
 	float pass_shadow_scale;
 	int filter_table_offset;
-	int use_cryptomatte;
+	unsigned int use_cryptomatte;
 
 	int pass_mist;
 	float mist_start;

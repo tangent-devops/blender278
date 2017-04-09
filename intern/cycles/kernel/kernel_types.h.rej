@@ -1,0 +1,10 @@
+diff a/intern/cycles/kernel/kernel_types.h b/intern/cycles/kernel/kernel_types.h	(rejected hunks)
+@@ -42,7 +42,7 @@ CCL_NAMESPACE_BEGIN
+ #define RAMP_TABLE_SIZE		256
+ #define SHUTTER_TABLE_SIZE		256
+ #define PARTICLE_SIZE 		5
+-#define SHADER_SIZE		13
++#define SHADER_SIZE		14
+ #define ID_SLOT_SIZE	2
+ 
+ #define BSSRDF_MIN_RADIUS			1e-8f

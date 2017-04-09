@@ -1212,7 +1212,16 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
                 description="CryptoMatte Object pass",
                 default=False,
                 )
-
+        cls.use_pass_crypto_material = BoolProperty(
+                name="CryptoMatte Material",
+                description="CryptoMatte Material pass",
+                default=False,
+                )
+        cls.pass_crypto_depth = IntProperty(
+                name="CryptoMatte Depth",
+                description="CryptoMatte Depth",
+                default=4, min=2, max=16, step=2,
+                )
     @classmethod
     def unregister(cls):
         del bpy.types.SceneRenderLayer.cycles

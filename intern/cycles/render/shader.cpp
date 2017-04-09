@@ -30,6 +30,7 @@
 #include "render/tables.h"
 
 #include "util/util_foreach.h"
+#include "util/util_murmurhash.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -464,14 +465,18 @@ void ShaderManager::device_update_common(Device *device,
 		float3 constant_emission = make_float3(0.0f, 0.0f, 0.0f);
 		if(shader->is_constant_emission(&constant_emission))
 			flag |= SD_HAS_CONSTANT_EMISSION;
-
+		
+		uint32_t cryptomatte_id = 0;
+		MurmurHash3_x86_32(shader->name.c_str(), shader->name.length(), 0, &cryptomatte_id);
+		
 		/* regular shader */
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
 		shader_flag[i++] = __float_as_int(constant_emission.x);
 		shader_flag[i++] = __float_as_int(constant_emission.y);
 		shader_flag[i++] = __float_as_int(constant_emission.z);
-
+		shader_flag[i++] = __float_as_int(hash_to_float(cryptomatte_id));
+		
 		has_transparent_shadow |= (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
 	}
 
