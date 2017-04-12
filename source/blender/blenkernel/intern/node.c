@@ -3038,6 +3038,63 @@ void ntreeUpdateTree(Main *bmain, bNodeTree *ntree)
 	ntree->is_updating = false;
 }
 
+void ntreeUpdateTreeDelete(Main *bmain, bNodeTree *ntree)
+{
+	bNode *node;
+
+	if (!ntree)
+		return;
+
+	/* avoid reentrant updates, can be caused by RNA update callbacks */
+	if (ntree->is_updating)
+		return;
+	ntree->is_updating = true;
+
+	if (ntree->update & (NTREE_UPDATE_LINKS | NTREE_UPDATE_NODES)) {
+		/* set the bNodeSocket->link pointers */
+		ntree_update_link_pointers(ntree);
+	}
+
+	/* update individual nodes */
+	for (node = ntree->nodes.first; node; node = node->next) {
+		/* node tree update tags override individual node update flags */
+		if ((node->update & NODE_UPDATE) || (ntree->update & NTREE_UPDATE)) {
+			if (node->typeinfo->updatefunc)
+				node->typeinfo->updatefunc(ntree, node);
+
+			nodeUpdateInternalLinks(ntree, node);
+		}
+	}
+
+	/* generic tree update callback */
+	if (ntree->typeinfo->update)
+		ntree->typeinfo->update(ntree);
+	/* XXX this should be moved into the tree type update callback for tree supporting node groups.
+	* Currently the node tree interface is still a generic feature of the base NodeTree type.
+	*/
+	if (ntree->update & NTREE_UPDATE_GROUP)
+		ntreeInterfaceTypeUpdate(ntree);
+
+	if (ntree->update & (NTREE_UPDATE_LINKS | NTREE_UPDATE_NODES)) {
+		/* node updates can change sockets or links, repeat link pointer update afterward */
+		ntree_update_link_pointers(ntree);
+
+		/* update the node level from link dependencies */
+		ntree_update_node_level(ntree);
+
+		/* check link validity */
+		ntree_validate_links(ntree);
+	}
+
+	/* clear update flags */
+	for (node = ntree->nodes.first; node; node = node->next) {
+		node->update = 0;
+	}
+	ntree->update = 0;
+
+	ntree->is_updating = false;
+}
+
 void nodeUpdate(bNodeTree *ntree, bNode *node)
 {
 	/* avoid reentrant updates, can be caused by RNA update callbacks */
