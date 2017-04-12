@@ -390,7 +390,7 @@ static void libblock_remap_data_postprocess_nodetree_update(Main *bmain, ID *new
 	/* Update node trees as necessary. */
 	FOREACH_NODETREE(bmain, ntree, id) {
 		/* make an update call for the tree */
-		ntreeUpdateTree(bmain, ntree);
+		ntreeUpdateTreeDelete(bmain, ntree);
 	} FOREACH_NODETREE_END
 }
 
