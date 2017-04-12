@@ -164,7 +164,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 	int aov_count = 0;
 	
 	// TODO: Write cryptomatte AOV
-	if(kernel_data.film.use_cryptomatte) {
+	if(kernel_data.film.use_cryptomatte & CRYPT_OBJECT) {
 		float matte_weight = state->matte_weight * (1.0f - average(shader_bsdf_transparency(kg, sd)));
 		bool initialize_slots = (sample == 0) && (state->transparent_bounce == 0);
 		float id = object_cryptomatte_id(kg, sd->object);
