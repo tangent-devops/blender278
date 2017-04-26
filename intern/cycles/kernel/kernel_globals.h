@@ -17,7 +17,7 @@
 /* Constant Globals */
 
 #ifdef __KERNEL_CPU__
-#include <vector>
+#include "util_vector.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -39,12 +39,12 @@ struct Intersection;
 struct VolumeStep;
 
 typedef struct KernelGlobals {
-	std::vector<texture_image_uchar4> texture_byte4_images;
-	std::vector<texture_image_float4> texture_float4_images;
-	std::vector<texture_image_half4> texture_half4_images;
-	std::vector<texture_image_float> texture_float_images;
-	std::vector<texture_image_uchar> texture_byte_images;
-	std::vector<texture_image_half> texture_half_images;
+	vector<texture_image_uchar4> texture_byte4_images;
+	vector<texture_image_float4> texture_float4_images;
+	vector<texture_image_half4> texture_half4_images;
+	vector<texture_image_float> texture_float_images;
+	vector<texture_image_uchar> texture_byte_images;
+	vector<texture_image_half> texture_half_images;
 
 #  define KERNEL_TEX(type, ttype, name) ttype name;
 #  define KERNEL_IMAGE_TEX(type, ttype, name)

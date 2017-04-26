@@ -203,7 +203,7 @@ int ImageManager::type_index_to_flattened_slot(int slot, ImageDataType type)
 		}
 	}
 
-	return (slot << 3) | (type);
+	return (slot << IMAGE_DATA_TYPE_SHIFT) | (type);
 }
 
 int ImageManager::flattened_slot_to_type_index(int flat_slot, ImageDataType *type)
@@ -219,8 +219,8 @@ int ImageManager::flattened_slot_to_type_index(int flat_slot, ImageDataType *typ
 		}
 	}
 
-	*type = static_cast<ImageDataType>(flat_slot & 0x7);
-	return flat_slot >> 3;
+	*type = (ImageDataType)(flat_slot & IMAGE_DATA_TYPE_MASK);
+	return flat_slot >> IMAGE_DATA_TYPE_SHIFT;
 }
 
 string ImageManager::name_from_type(int type)

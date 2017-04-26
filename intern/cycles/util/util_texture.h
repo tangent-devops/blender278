@@ -48,8 +48,8 @@ CCL_NAMESPACE_BEGIN
 #  define kernel_tex_type(tex) (tex < TEX_START_BYTE4_CUDA ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_BYTE4)
 #  define kernel_tex_index(tex) (tex)
 #else
-#  define kernel_tex_type(tex) (tex & 0x7)
-#  define kernel_tex_index(tex) (tex >> 3)
+#  define kernel_tex_type(tex) (tex & IMAGE_DATA_TYPE_MASK)
+#  define kernel_tex_index(tex) (tex >> IMAGE_DATA_TYPE_SHIFT)
 #endif
 
 CCL_NAMESPACE_END

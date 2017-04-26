@@ -98,8 +98,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_float4_images.size())
+			if(array_index >= kg->texture_float4_images.size()) {
 				kg->texture_float4_images.resize(array_index+1);
+			}
 			tex = &kg->texture_float4_images[array_index];
 		}
 
@@ -116,8 +117,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 		
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_float_images.size())
+			if(array_index >= kg->texture_float_images.size()) {
 				kg->texture_float_images.resize(array_index+1);
+			}
 			tex = &kg->texture_float_images[array_index];
 		}
 
@@ -134,8 +136,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 		
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_byte4_images.size())
+			if(array_index >= kg->texture_byte4_images.size()) {
 				kg->texture_byte4_images.resize(array_index+1);
+			}
 			tex = &kg->texture_byte4_images[array_index];
 		}
 
@@ -152,8 +155,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 		
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_byte_images.size())
+			if(array_index >= kg->texture_byte_images.size()) {
 				kg->texture_byte_images.resize(array_index+1);
+			}
 			tex = &kg->texture_byte_images[array_index];
 		}
 
@@ -170,8 +174,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 		
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_half4_images.size())
+			if(array_index >= kg->texture_half4_images.size()) {
 				kg->texture_half4_images.resize(array_index+1);
+			}
 			tex = &kg->texture_half4_images[array_index];
 		}
 
@@ -188,8 +193,9 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int array_index = kernel_tex_index(id);
 		
 		if(array_index >= 0) {
-			if (array_index >= kg->texture_half_images.size())
+			if(array_index >= kg->texture_half_images.size()) {
 				kg->texture_half_images.resize(array_index+1);
+			}
 			tex = &kg->texture_half_images[array_index];
 		}
 
