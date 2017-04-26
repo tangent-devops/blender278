@@ -196,7 +196,7 @@ int ImageManager::type_index_to_flattened_slot(int slot, ImageDataType type)
 {
 	if (cuda_fermi_limits) {
 		if (type == IMAGE_DATA_TYPE_BYTE4) {
-			return slot + 5;
+			return slot + TEX_START_BYTE4_CUDA;
 		}
 		else {
 			return slot;
@@ -211,7 +211,7 @@ int ImageManager::flattened_slot_to_type_index(int flat_slot, ImageDataType *typ
 	if (cuda_fermi_limits) {
 		if (flat_slot >= 4) {
 			*type = IMAGE_DATA_TYPE_BYTE4;
-			return flat_slot - 5;
+			return flat_slot - TEX_START_BYTE4_CUDA;
 		}
 		else {
 			*type = IMAGE_DATA_TYPE_FLOAT4;
