@@ -98,6 +98,7 @@ public:
 	OpenCLProgram program_holdout_emission_blurring_pathtermination_ao;
 	OpenCLProgram program_direct_lighting;
 	OpenCLProgram program_shadow_blocked;
+	OpenCLProgram program_shadow_blocked_simple;
 	OpenCLProgram program_next_iteration_setup;
 	OpenCLProgram program_sum_all_radiance;
 
@@ -332,6 +333,7 @@ public:
 		LOAD_KERNEL(holdout_emission_blurring_pathtermination_ao);
 		LOAD_KERNEL(direct_lighting);
 		LOAD_KERNEL(shadow_blocked);
+		LOAD_KERNEL(shadow_blocked_simple);
 		LOAD_KERNEL(next_iteration_setup);
 		LOAD_KERNEL(sum_all_radiance);
 
@@ -807,6 +809,7 @@ public:
 				ENQUEUE_SPLIT_KERNEL(holdout_emission_blurring_pathtermination_ao, global_size, local_size);
 				ENQUEUE_SPLIT_KERNEL(direct_lighting, global_size, local_size);
 				ENQUEUE_SPLIT_KERNEL(shadow_blocked, global_size_shadow_blocked, local_size);
+				ENQUEUE_SPLIT_KERNEL(shadow_blocked_simple, global_size_shadow_blocked, local_size);
 				ENQUEUE_SPLIT_KERNEL(next_iteration_setup, global_size, local_size);
 
 				if(task->get_cancel()) {

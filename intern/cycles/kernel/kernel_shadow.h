@@ -41,6 +41,21 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
+ ccl_device_inline bool shadow_blocked_simple(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking)
+{
+	*shadow = make_float3(1.0f, 1.0f, 1.0f);
+
+	if (ray->t == 0.0f)
+		return false;
+
+	bool blocked;
+
+	Intersection isect;
+	blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f, shadow_linking);
+
+	return blocked;
+}
+
 ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
@@ -199,6 +214,35 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 
 #else
 
+ccl_device_noinline bool shadow_blocked_simple(KernelGlobals *kg,
+											   ShaderData *shadow_sd,
+											   ccl_addr_space PathState *state,
+											   ccl_addr_space Ray *ray_input,
+											   float3 *shadow,
+											   uint shadow_linking)
+{
+	*shadow = make_float3(1.0f, 1.0f, 1.0f);
+
+#ifdef __SPLIT_KERNEL__
+	Ray private_ray = *ray_input;
+	Ray *ray = &private_ray;
+#else
+	Ray *ray = ray_input;
+#endif
+
+#ifdef __SPLIT_KERNEL__
+	Intersection *isect = &kg->isect_shadow[SD_THREAD];
+#else
+	Intersection isect_object;
+	Intersection *isect = &isect_object;
+#endif
+
+	if(ray_input->t == 0.0f)
+		return false;
+	bool blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f, shadow_linking);
+	return blocked;
+}
+
 /* Shadow function to compute how much light is blocked, GPU variation.
  *
  * Here we raytrace from one transparent surface to the next step by step.
@@ -215,7 +259,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
                                         uint shadow_linking)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
-
+	
 	if(ray_input->t == 0.0f)
 		return false;
 
