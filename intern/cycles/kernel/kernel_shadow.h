@@ -43,7 +43,6 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking)
 {
-	//shadow_linking = 0xFFFFFFFF; // This seems to be a quick little fix!
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
 	if(ray->t == 0.0f)
