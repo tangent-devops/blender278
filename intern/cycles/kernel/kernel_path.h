@@ -109,8 +109,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
                                      PathRadiance *L,
                                      uint light_linking)
 {
-	float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
-	light_linking = __float_as_uint(light_and_shadow_linking.y);
 	/* path iteration */
 	for(;;) {
 		/* intersect scene */
@@ -201,8 +199,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 				if(volume_segment.closure_flag & SD_RUNTIME_SCATTER) {
 					int all = kernel_data.integrator.sample_all_lights_indirect;
-                    //uint light_linking = object_light_linking(kg, sd->object);
-                    //uint shadow_linking = object_shadow_linking(kg, sd->object);
 
 					/* direct light sampling */
 					kernel_branched_path_volume_connect_light(kg,
