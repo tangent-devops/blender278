@@ -34,6 +34,7 @@
 #include "kernel/kernel_types.h"
 #include "kernel/split/kernel_split_data.h"
 #include "kernel/kernel_globals.h"
+#include "kernel/kernel_oiio_globals.h"
 
 #include "kernel/filter/filter.h"
 
@@ -165,6 +166,7 @@ public:
 #ifdef WITH_OSL
 	OSLGlobals osl_globals;
 #endif
+	OIIOGlobals oiio_globals;
 
 	bool use_split_kernel;
 
@@ -229,6 +231,13 @@ public:
 #ifdef WITH_OSL
 		kernel_globals.osl = &osl_globals;
 #endif
+		oiio_globals.tex_sys = TextureSystem::create();
+		oiio_globals.tex_sys->attribute("max_memory_MB", 1024.0f);
+		oiio_globals.tex_sys->attribute("autotile", 64);
+		oiio_globals.tex_sys->attribute("automip", 64);
+		oiio_globals.tex_sys->attribute("gray_to_rgb", 1);
+		kernel_globals.oiio = &oiio_globals;
+		
 		use_split_kernel = DebugFlags().cpu.split_kernel;
 		if(use_split_kernel) {
 			VLOG(1) << "Will be using split kernel.";
@@ -260,6 +269,12 @@ public:
 	~CPUDevice()
 	{
 		task_pool.stop();
+		
+		VLOG(1) << oiio_globals.tex_sys->getstats();
+		std::cout << oiio_globals.tex_sys->getstats();
+		oiio_globals.tex_sys->reset_stats();
+		TextureSystem::destroy(oiio_globals.tex_sys);
+		kernel_globals.oiio = NULL;
 	}
 
 	virtual bool show_samples() const
@@ -363,6 +378,11 @@ public:
 #endif
 	}
 
+	void *oiio_memory()
+	{
+		return &oiio_globals;
+	}
+	
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::RENDER) {
