@@ -725,9 +725,6 @@ ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
 				if(volume_segment.closure_flag & SD_RUNTIME_SCATTER) {
 					int all = false;
 
-                    /*uint light_linking = object_light_linking(kg, sd.object);
-                    uint shadow_linking = object_shadow_linking(kg, sd.object);*/
-
 					/* direct light sampling */
 					kernel_branched_path_volume_connect_light(kg, rng, &sd,
 						&emission_sd, throughput, &state, &L, all,
