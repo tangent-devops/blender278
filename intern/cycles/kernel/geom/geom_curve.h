@@ -1091,6 +1091,10 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 	sd->dPdu = tg;
 	sd->dPdv = cross(tg, sd->Ng);
 #endif
+#ifdef __DNDU__
+	sd->dNdu = make_float3(0.0f, 0.0f, 0.0f);
+	sd->dNdv = make_float3(0.0f, 0.0f, 0.0f);
+#endif
 
 	if(isect->object != OBJECT_NONE) {
 #ifdef __OBJECT_MOTION__
