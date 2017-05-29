@@ -211,6 +211,23 @@ bool PassSettings::modified(const PassSettings& other) const
 	         aovs == other.aovs);
 }
 
+int PassSettings::get_denoising_offset() const
+{
+	int size = 0;
+
+	for(size_t i = 0; i < passes.size(); i++) {
+		if(!passes[i].is_virtual) {
+			size += passes[i].components;
+		}
+	}
+
+	for(size_t i = 0; i < aovs.size(); i++) {
+		size += aovs[i].type != AOV_FLOAT ? 4 : 1;
+	}
+
+	return size;
+}
+
 int PassSettings::get_size() const
 {
 	int size = 0;
@@ -377,6 +394,8 @@ NODE_DEFINE(Film)
 
 	SOCKET_INT(object_id_slots, "Object ID Slots", 0);
 	
+	SOCKET_INT(denoising_flags, "Denoising Flags", 0);
+
 	return type;
 }
 
@@ -552,6 +571,20 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 		}
 	}
 
+	kfilm->pass_denoising_data = 0;
+	kfilm->pass_denoising_clean = 0;
+	kfilm->denoising_flags = 0;
+	if(passes.denoising_data_pass) {
+		kfilm->pass_denoising_data = kfilm->pass_stride;
+		kfilm->pass_stride += DENOISING_PASS_SIZE_BASE;
+		kfilm->denoising_flags = denoising_flags;
+		if(passes.denoising_clean_pass) {
+			kfilm->pass_denoising_clean = kfilm->pass_stride;
+			kfilm->pass_stride += DENOISING_PASS_SIZE_CLEAN;
+			kfilm->use_light_pass = 1;
+		}
+	}
+
 	kfilm->pass_stride = align_up(kfilm->pass_stride, 4);
 	kfilm->pass_alpha_threshold = pass_alpha_threshold;
 
@@ -567,7 +600,11 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_falloff = mist_falloff;
 
 	kfilm->use_cryptomatte = use_cryptomatte;
-	
+
+	pass_stride = kfilm->pass_stride;
+	denoising_data_offset = kfilm->pass_denoising_data;
+	denoising_clean_offset = kfilm->pass_denoising_clean;
+
 	need_update = false;
 }
 

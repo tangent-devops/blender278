@@ -63,6 +63,7 @@ bool BufferParams::modified(const BufferParams& params)
 		&& passes.modified(params.passes));
 }
 
+
 /* Render Buffer Task */
 
 RenderTile::RenderTile()
@@ -129,12 +130,51 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device->mem_alloc("rng_state", rng_state, MEM_READ_WRITE);
 }
 
-bool RenderBuffers::copy_from_device()
+bool RenderBuffers::copy_from_device(Device *from_device)
 {
 	if(!buffer.device_pointer)
 		return false;
 
-	device->mem_copy_from(buffer, 0, params.width, params.height, params.passes.get_size()*sizeof(float));
+	if(!from_device) {
+		from_device = device;
+	}
+
+	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.passes.get_size()*sizeof(float));
+
+	return true;
+}
+
+bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels)
+{
+	float scale = 1.0f/sample;
+
+	if(offset == DENOISING_PASS_COLOR) {
+		scale *= exposure;
+	}
+	else if(offset == DENOISING_PASS_COLOR_VAR) {
+		scale *= exposure*exposure;
+	}
+
+	offset += params.passes.get_denoising_offset();
+	float *in = (float*)buffer.data_pointer + offset;
+	int pass_stride = params.passes.get_size();
+	int size = params.width*params.height;
+
+	if(components == 1) {
+		for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+			pixels[0] = in[0]*scale;
+		}
+	}
+	else if(components == 3) {
+		for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+			pixels[0] = in[0]*scale;
+			pixels[1] = in[1]*scale;
+			pixels[2] = in[2]*scale;
+		}
+	}
+	else {
+		return false;
+	}
 
 	return true;
 }

@@ -30,6 +30,16 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* Some helpers to silence warning in templated function. */
+static bool isfinite(uchar /*value*/)
+{
+	return false;
+}
+static bool isfinite(half /*value*/)
+{
+	return false;
+}
+
 ImageManager::ImageManager(const DeviceInfo& info)
 {
 	need_update = true;
@@ -639,6 +649,37 @@ bool ImageManager::file_load_image(Image *img,
 			}
 		}
 	}
+	/* Make sure we don't have buggy values. */
+	if(FileFormat == TypeDesc::FLOAT) {
+		/* For RGBA buffers we put all channels to 0 if either of them is not
+		 * finite. This way we avoid possible artifacts caused by fully changed
+		 * hue.
+		 */
+		if(is_rgba) {
+			for(size_t i = 0; i < num_pixels; i += 4) {
+				StorageType *pixel = &pixels[i*4];
+				if(!isfinite(pixel[0]) ||
+				   !isfinite(pixel[1]) ||
+				   !isfinite(pixel[2]) ||
+				   !isfinite(pixel[3]))
+				{
+					pixel[0] = 0;
+					pixel[1] = 0;
+					pixel[2] = 0;
+					pixel[3] = 0;
+				}
+			}
+		}
+		else {
+			for(size_t i = 0; i < num_pixels; ++i) {
+				StorageType *pixel = &pixels[i];
+				if(!isfinite(pixel[0])) {
+					pixel[0] = 0;
+				}
+			}
+		}
+	}
+	/* Scale image down if needed. */
 	if(pixels_storage.size() > 0) {
 		float scale_factor = 1.0f;
 		while(max_size * scale_factor > texture_limit) {
@@ -949,16 +990,8 @@ void ImageManager::device_free_image(Device *device, DeviceScene *dscene, ImageD
 	}
 }
 
-void ImageManager::device_update(Device *device,
-                                 DeviceScene *dscene,
-                                 Scene *scene,
-                                 Progress& progress)
+void ImageManager::device_prepare_update(DeviceScene *dscene)
 {
-	if(!need_update)
-		return;
-
-	TaskPool pool;
-
 	for(int type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
 		switch(type) {
 			case IMAGE_DATA_TYPE_FLOAT4:
@@ -986,6 +1019,23 @@ void ImageManager::device_update(Device *device,
 					dscene->tex_half_image.resize(tex_num_images[IMAGE_DATA_TYPE_HALF]);
 				break;
 		}
+	}
+}
+
+void ImageManager::device_update(Device *device,
+                                 DeviceScene *dscene,
+                                 Scene *scene,
+                                 Progress& progress)
+{
+	if(!need_update) {
+		return;
+	}
+
+	/* Make sure arrays are proper size. */
+	device_prepare_update(dscene);
+
+	TaskPool pool;
+	for(int type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
 		for(size_t slot = 0; slot < images[type].size(); slot++) {
 			if(!images[type][slot])
 				continue;
