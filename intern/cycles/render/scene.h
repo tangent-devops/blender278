@@ -146,6 +146,7 @@ public:
 	bool use_bvh_unaligned_nodes;
 	int num_bvh_time_steps;
 	bool use_qbvh;
+	bool use_bvh_embree;
 	bool persistent_data;
 	int texture_limit;
 
@@ -169,7 +170,8 @@ public:
 		&& num_bvh_time_steps == params.num_bvh_time_steps
 		&& use_qbvh == params.use_qbvh
 		&& persistent_data == params.persistent_data
-		&& texture_limit == params.texture_limit); }
+		&& texture_limit == params.texture_limit
+		&& use_bvh_embree == params.use_bvh_embree); }
 };
 
 /* Scene */

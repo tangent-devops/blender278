@@ -79,6 +79,8 @@ public:
 		NUM_SPATIAL_BINS = 32
 	};
 
+	bool use_bvh_embree;
+
 	BVHParams()
 	{
 		use_spatial_split = true;
@@ -105,6 +107,8 @@ public:
 
 		num_motion_curve_steps = 0;
 		num_motion_triangle_steps = 0;
+
+		use_bvh_embree = false;
 	}
 
 	/* SAH costs */
