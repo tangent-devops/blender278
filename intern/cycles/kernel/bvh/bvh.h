@@ -25,6 +25,11 @@
  * the code has been extended and modified to support more primitives and work
  * with CPU/CUDA/OpenCL. */
 
+#ifdef __EMBREE__
+#include "embree2/rtcore_ray.h"
+#include "embree2/rtcore_scene.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 #include "kernel/bvh/bvh_types.h"
@@ -166,6 +171,37 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg,
                                           float difl,
                                           float extmax)
 {
+#ifdef __EMBREE__
+	if(kernel_data.bvh.scene) {
+		RTCRay rtc_ray;
+		rtc_ray.org[0] = ray.P.x;
+		rtc_ray.org[1] = ray.P.y;
+		rtc_ray.org[2] = ray.P.z;
+		rtc_ray.dir[0] = ray.D.x;
+		rtc_ray.dir[1] = ray.D.y;
+		rtc_ray.dir[2] = ray.D.z;
+		rtc_ray.tnear = 0.0f;
+		rtc_ray.tfar = ray.t;
+		rtc_ray.time = ray.time;
+		rtc_ray.mask = -1;
+		rtc_ray.geomID = rtc_ray.primID = RTC_INVALID_GEOMETRY_ID;
+		rtcIntersect(kernel_data.bvh.scene, rtc_ray);
+		if(rtc_ray.geomID != RTC_INVALID_GEOMETRY_ID && rtc_ray.primID != RTC_INVALID_GEOMETRY_ID) {
+			isect->u = 1.0f - rtc_ray.v - rtc_ray.u;
+			isect->v = rtc_ray.u;
+			isect->t = rtc_ray.tfar;
+			if(rtc_ray.geomID > 0) {
+				isect->prim = rtc_ray.primID + kernel_tex_fetch(__object_node, rtc_ray.geomID -1);
+			} else {
+				isect->prim = rtc_ray.primID;
+			}
+			isect->object = rtc_ray.geomID;
+			isect->type = PRIMITIVE_TRIANGLE;
+			return true;
+		}
+		return false;
+	}
+#endif
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #  ifdef __HAIR__
@@ -237,6 +273,38 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg,
                                                      uint max_hits,
                                                      uint *num_hits)
 {
+#ifdef __EMBREE__
+	if(kernel_data.bvh.scene) {
+		RTCRay rtc_ray;
+		rtc_ray.org[0] = ray->P.x;
+		rtc_ray.org[1] = ray->P.y;
+		rtc_ray.org[2] = ray->P.z;
+		rtc_ray.dir[0] = ray->D.x;
+		rtc_ray.dir[1] = ray->D.y;
+		rtc_ray.dir[2] = ray->D.z;
+		rtc_ray.tnear = 0.0f;
+		rtc_ray.tfar = ray->t;
+		rtc_ray.time = ray->time;
+		rtc_ray.mask = -1;
+		rtc_ray.geomID = rtc_ray.primID = RTC_INVALID_GEOMETRY_ID;
+		rtcIntersect(kernel_data.bvh.scene, rtc_ray);
+		if(rtc_ray.geomID != RTC_INVALID_GEOMETRY_ID && rtc_ray.primID != RTC_INVALID_GEOMETRY_ID) {
+			isect->u = 1.0f - rtc_ray.v - rtc_ray.u;
+			isect->v = rtc_ray.u;
+			isect->t = rtc_ray.tfar;
+			if(rtc_ray.geomID > 0) {
+				isect->prim = rtc_ray.primID + kernel_tex_fetch(__object_node, rtc_ray.geomID -1);
+			} else {
+				isect->prim = rtc_ray.primID;
+			}
+			isect->object = rtc_ray.geomID;
+			isect->type = PRIMITIVE_TRIANGLE;
+			*num_hits = 1;
+			return true;
+		}
+		return false;
+	}
+#endif
 #  ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #    ifdef __HAIR__

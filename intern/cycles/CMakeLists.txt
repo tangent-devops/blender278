@@ -152,7 +152,6 @@ if(WITH_CYCLES_OSL)
 endif()
 
 if(WITH_CYCLES_EMBREE)
-	find_package(embree 2.16.1 REQUIRED)
 	add_definitions(-DWITH_EMBREE)
 	include_directories(
 		SYSTEM
