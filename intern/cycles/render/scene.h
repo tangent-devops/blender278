@@ -63,11 +63,11 @@ public:
 	device_vector<float4> bvh_nodes;
 	device_vector<float4> bvh_leaf_nodes;
 	device_vector<uint> object_node;
-	device_vector<uint> prim_tri_index;
-	device_vector<float4> prim_tri_verts;
-	device_vector<uint> prim_type;
+	device_vector<uint> prim_tri_index; // !
+	device_vector<float4> prim_tri_verts; // !
+	device_vector<uint> prim_type; // !
 	device_vector<uint> prim_visibility;
-	device_vector<uint> prim_index;
+	device_vector<uint> prim_index; // !
 	device_vector<uint> prim_object;
 	device_vector<float2> prim_time;
 
