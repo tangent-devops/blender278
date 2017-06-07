@@ -230,8 +230,6 @@ void BVHEmbree::build(Progress& progress)
 
 	progress.set_substatus("Packing geometry");
 	pack_nodes(NULL);
-
-	pack.print();
 }
 
 unsigned BVHEmbree::add_object(Object *ob, int i)
