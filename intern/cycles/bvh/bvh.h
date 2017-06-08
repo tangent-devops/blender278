@@ -25,6 +25,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Stats;
 class BVHNode;
 struct BVHStackEntry;
 class BVHParams;
@@ -85,7 +86,7 @@ public:
 	static BVH *create(const BVHParams& params, const vector<Object*>& objects);
 	virtual ~BVH() {}
 
-	virtual void build(Progress& progress);
+	virtual void build(Progress& progress, Stats *stats=NULL);
 	void refit(Progress& progress);
 
 protected:
