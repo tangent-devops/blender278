@@ -1175,11 +1175,17 @@ class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
     def unregister(cls):
         del bpy.types.Scene.cycles_curves
 
+def update_render_passes(self, context):
+        scene = context.scene
+        rd = scene.render
+        rl = rd.layers.active
+        rl.update_render_passes()
+
 class CyclesAOVSettings(bpy.types.PropertyGroup):
     @classmethod
     def register(cls):
-        cls.name = StringProperty(name="Name")
-        cls.type = EnumProperty(name="Type", items=enum_aov_types, default='COLOR')
+        cls.name = StringProperty(name="Name", update=update_render_passes)
+        cls.type = EnumProperty(name="Type", update=update_render_passes, items=enum_aov_types, default='COLOR')
 
 def update_render_passes(self, context):
     scene = context.scene
@@ -1219,7 +1225,6 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
                 default=False,
                 update=update_render_passes,
                 )
-
         cls.use_denoising = BoolProperty(
                 name="Use Denoising",
                 description="Denoise the rendered image",
