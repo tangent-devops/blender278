@@ -398,8 +398,7 @@ void BlenderSession::render()
 
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
-		sync->sync_film(b_rlay, *b_layer_iter, session_params.device.advanced_shading);
-
+		sync->sync_film(b_rlay, *b_layer_iter, session_params);
 		buffer_params.passes = scene->film->passes;
 
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");

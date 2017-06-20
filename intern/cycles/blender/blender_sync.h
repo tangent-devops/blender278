@@ -69,7 +69,7 @@ public:
 	void sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer);
 	void sync_film(BL::RenderLayer& b_rlay,
 	               BL::SceneRenderLayer& b_srlay,
-	               bool advanced_shading);
+	               const SessionParams &session_params);
 	void sync_integrator();
 	void sync_camera(BL::RenderSettings& b_render,
 	                 BL::Object& b_override,

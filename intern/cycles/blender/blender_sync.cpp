@@ -554,13 +554,12 @@ int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
 
 void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 	                        BL::SceneRenderLayer& b_srlay,
-	                        bool advanced_shading)
+	                       const SessionParams &session_params)
 {
 	PassSettings passes;
-	
-	PointerRNA crl = RNA_pointer_get(&b_srlay.ptr, "cycles");
+	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
 
-	if(advanced_shading) {
+	if(session_params.device.advanced_shading) {
 		/* loop over passes */
 		BL::RenderLayer::passes_iterator b_pass_iter;
 
@@ -575,12 +574,12 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 		}
 
 		/* make Crypto passes appear before user defined AOVs
-		 * that way, their indices are known */
+			* that way, their indices are known */
 		
-		int crypto_depth = std::min(16, get_int(crl, "pass_crypto_depth")) / 2;
+		int crypto_depth = std::min(16, get_int(crp, "pass_crypto_depth")) / 2;
 		scene->film->use_cryptomatte = crypto_depth;
-	
-		if(get_boolean(crl, "use_pass_crypto_object")) {
+
+		if(get_boolean(crp, "use_pass_crypto_object")) {
 			for(int i = 0; i < crypto_depth; ++i) {
 				string passname = string_printf("uCryptoObject%02d", i);
 				AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
@@ -591,7 +590,7 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 			scene->film->use_cryptomatte |= CRYPT_OBJECT;
 		}
 		
-		if(get_boolean(crl, "use_pass_crypto_material")) {
+		if(get_boolean(crp, "use_pass_crypto_material")) {
 			for(int i = 0; i < crypto_depth; ++i) {
 				string passname = string_printf("uCryptoMaterial%02d", i);
 				AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
@@ -602,7 +601,7 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 			scene->film->use_cryptomatte |= CRYPT_MATERIAL;
 		}
 		
-		RNA_BEGIN(&crl, b_aov, "aovs") {
+		RNA_BEGIN(&crp, b_aov, "aovs") {
 			bool is_color = RNA_enum_get(&b_aov, "type");
 			string name = get_string(b_aov, "name");
 			AOV aov = {ustring(name), 9999, is_color ? AOV_RGB : AOV_FLOAT};
@@ -611,7 +610,9 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 			b_engine.add_pass(passname.c_str(), is_color ? 3 : 1, is_color ? "RGB" : "X", b_srlay.name().c_str());
 		} RNA_END
 
-		if(get_boolean(crl, "denoising_store_passes")) {
+		if(get_boolean(crp, "denoising_store_passes") &&
+		   get_boolean(crp, "use_denoising") &&
+		   !session_params.progressive_refine) {
 			b_engine.add_pass("Denoising Normal",          3, "XYZ", b_srlay.name().c_str());
 			b_engine.add_pass("Denoising Normal Variance", 3, "XYZ", b_srlay.name().c_str());
 			b_engine.add_pass("Denoising Albedo",          3, "RGB", b_srlay.name().c_str());
@@ -626,35 +627,35 @@ void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 #ifdef __KERNEL_DEBUG__
 		if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
 			b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
+			passes.add(PASS_BVH_TRAVERSED_NODES);
 		}
 		if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
 			b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
+			Pass::add(PASS_BVH_TRAVERSED_INSTANCES);
 		}
 		if(get_boolean(crp, "pass_debug_bvh_intersections")) {
 			b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_INTERSECTIONS, passes);
+			passes.add(PASS_BVH_INTERSECTIONS);
 		}
 		if(get_boolean(crp, "pass_debug_ray_bounces")) {
 			b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_RAY_BOUNCES, passes);
+			passes.add(PASS_RAY_BOUNCES);
 		}
 #endif
 	}
 
 	scene->film->denoising_flags = 0;
-	if(!get_boolean(crl, "denoising_diffuse_direct"))        scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
-	if(!get_boolean(crl, "denoising_diffuse_indirect"))      scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
-	if(!get_boolean(crl, "denoising_glossy_direct"))         scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
-	if(!get_boolean(crl, "denoising_glossy_indirect"))       scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
-	if(!get_boolean(crl, "denoising_transmission_direct"))   scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
-	if(!get_boolean(crl, "denoising_transmission_indirect")) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
-	if(!get_boolean(crl, "denoising_subsurface_direct"))     scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
-	if(!get_boolean(crl, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+	if(!get_boolean(crp, "denoising_diffuse_direct"))        scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+	if(!get_boolean(crp, "denoising_diffuse_indirect"))      scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+	if(!get_boolean(crp, "denoising_glossy_direct"))         scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+	if(!get_boolean(crp, "denoising_glossy_indirect"))       scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+	if(!get_boolean(crp, "denoising_transmission_direct"))   scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+	if(!get_boolean(crp, "denoising_transmission_indirect")) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+	if(!get_boolean(crp, "denoising_subsurface_direct"))     scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+	if(!get_boolean(crp, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
 
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles"); 
-	bool use_denoising = !get_boolean(cscene, "use_progressive_refine") && get_boolean(crl, "use_denoising"); 
+	bool use_denoising = !get_boolean(cscene, "use_progressive_refine") && get_boolean(crp, "use_denoising"); 
 	passes.denoising_data_pass = use_denoising; 
 	passes.denoising_clean_pass = use_denoising && (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES); 
 

@@ -2488,6 +2488,7 @@ static void node_composit_buts_sunbeams(uiLayout *layout, bContext *UNUSED(C), P
 
 static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+	uiItemR(layout, ptr, "matte_id", 0, NULL, ICON_NONE);
     uiTemplateEyedropper(layout, ptr, "add");
     uiTemplateEyedropper(layout, ptr, "remove");
 }
