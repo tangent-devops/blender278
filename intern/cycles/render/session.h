@@ -63,6 +63,9 @@ public:
 	float denoising_strength;
 	float denoising_feature_strength;
 	bool denoising_relative_pca;
+	
+	bool only_denoise;
+	bool filter_cross;
 
 	double cancel_timeout;
 	double reset_timeout;
@@ -90,6 +93,9 @@ public:
 		denoising_strength = 0.0f;
 		denoising_feature_strength = 0.0f;
 		denoising_relative_pca = false;
+		
+		only_denoise = false;
+		filter_cross = false;
 
 		display_buffer_linear = false;
 
@@ -120,7 +126,9 @@ public:
 		&& text_timeout == params.text_timeout
 		&& progressive_update_timeout == params.progressive_update_timeout
 		&& tile_order == params.tile_order
-		&& shadingsystem == params.shadingsystem); }
+		&& shadingsystem == params.shadingsystem
+		&& only_denoise == params.only_denoise
+		&& filter_cross == params.filter_cross); }
 
 };
 
@@ -147,6 +155,7 @@ public:
 	~Session();
 
 	void start();
+	void start_denoise();
 	bool draw(BufferParams& params, DeviceDrawParams& draw_params);
 	void wait();
 
@@ -173,7 +182,8 @@ protected:
 	} delayed_reset;
 
 	void run();
-
+	void run_denoise();
+	
 	void update_status_time(bool show_pause = false, bool show_done = false);
 
 	void tonemap(int sample);

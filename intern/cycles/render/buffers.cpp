@@ -44,6 +44,9 @@ BufferParams::BufferParams()
 
 	denoising_data_pass = false;
 	denoising_clean_pass = false;
+	
+	cross_denoising = false;
+	frames = 0;
 
 	Pass::add(PASS_COMBINED, passes);
 }
@@ -62,7 +65,9 @@ bool BufferParams::modified(const BufferParams& params)
 		&& height == params.height
 		&& full_width == params.full_width
 		&& full_height == params.full_height
-		&& Pass::equals(passes, params.passes));
+		&& Pass::equals(passes, params.passes)
+		&& cross_denoising == params.cross_denoising
+		&& frames == params.frames);
 }
 
 int BufferParams::get_passes_size()
@@ -170,6 +175,29 @@ bool RenderBuffers::copy_from_device(Device *from_device)
 	return true;
 }
 
+bool RenderBuffers::copy_to_device(Device *to_device)
+{
+	if(!buffer.device_pointer)
+		return false;
+	
+	if(!to_device) {
+		to_device = device;
+	}
+	
+	to_device->mem_copy_to(buffer);
+	
+	return true;
+}
+
+int4 RenderBuffers::rect_to_local(int4 rect) {
+	rect.x -= params.full_x;
+	rect.y -= params.full_y;
+	rect.z -= params.full_x;
+	rect.w -= params.full_y;
+	assert(rect.x >= 0 && rect.y >= 0 && rect.z <= params.width && rect.w <= params.height);
+	return rect;
+}
+
 bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels)
 {
 	float scale = 1.0f/sample;
@@ -201,9 +229,83 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 	else {
 		return false;
 	}
-
+	
 	return true;
 }
+
+/* Helper macro that loops over all the pixels in the rect.
+ * First, the buffer pointer is shifted to the starting point of the rect.
+ * Then, after each line, the buffer pointer is shifted to the start of the next one. */
+#define FOREACH_PIXEL in += (rect.y*params.width + rect.x)*pass_stride; \
+for(int y = rect.y; y < rect.w; y++, in += (params.width + rect.x - rect.z)*pass_stride) \
+for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
+
+bool RenderBuffers::set_denoising_pass_rect(int offset, float exposure, int sample, int components, int4 rect, float *pixels, int frame)
+{
+	float scale = 1.0f/sample;
+	
+	if(offset == DENOISING_PASS_COLOR) {
+		scale *= exposure;
+	}
+	else if(offset == DENOISING_PASS_COLOR_VAR) {
+		scale *= exposure*exposure;
+	}
+	
+	rect = rect_to_local(rect);
+	
+	offset += params.get_denoising_offset();
+	float *in = (float*)buffer.data_pointer + offset;
+	int pass_stride = params.get_passes_size();	
+	if(components == 1) {
+		FOREACH_PIXEL
+		in[0] = pixels[0]*scale;
+	}
+	else if(components == 3) {
+		FOREACH_PIXEL {
+			in[0] = pixels[0]*scale;
+			in[1] = pixels[1]*scale;
+			in[2] = pixels[2]*scale;
+		}
+	}
+	else {
+		return false;
+	}
+	
+	return true;
+}
+
+bool RenderBuffers::set_combined_pass_rect(int4 rect, float* pixels, int frame, int sample)
+{
+	rect = rect_to_local(rect);
+	
+	int pass_offset = 0;
+	const int components = 4;
+	
+	for(size_t j = 0; j < params.passes.size(); j++) {
+		Pass& pass = params.passes[j];
+		
+		if(pass.type != PASS_COMBINED) {
+			pass_offset += pass.components;
+			continue;
+		}
+		
+		float *in = (float*)buffer.data_pointer + pass_offset;
+		int pass_stride = params.get_passes_size();
+		in += params.width*params.height*pass_stride * frame;
+		
+		float scale = sample;
+		
+		FOREACH_PIXEL {
+			in[0] = pixels[0]*scale;
+			in[1] = pixels[1]*scale;
+			in[2] = pixels[2]*scale;
+			in[3] = pixels[3]*scale;
+		}
+		return true;
+	}
+	return false;
+}
+#undef FOREACH_PIXEL
 
 bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels)
 {
@@ -454,21 +556,24 @@ void DisplayBuffer::write(Device *device, const string& filename)
 
 	/* write image */
 	ImageOutput *out = ImageOutput::create(filename);
-	ImageSpec spec(w, h, 4, TypeDesc::UINT8);
-	int scanlinesize = w*4*sizeof(uchar);
+	assert(out);
+	if(out) {
+		ImageSpec spec(w, h, 4, TypeDesc::UINT8);
+		int scanlinesize = w*4*sizeof(uchar);
 
-	out->open(filename, spec);
+		out->open(filename, spec);
 
-	/* conversion for different top/bottom convention */
-	out->write_image(TypeDesc::UINT8,
-		(uchar*)rgba.data_pointer + (h-1)*scanlinesize,
-		AutoStride,
-		-scanlinesize,
-		AutoStride);
+		/* conversion for different top/bottom convention */
+		out->write_image(TypeDesc::UINT8,
+			(uchar*)rgba.data_pointer + (h-1)*scanlinesize,
+			AutoStride,
+			-scanlinesize,
+			AutoStride);
 
-	out->close();
+		out->close();
 
-	delete out;
+		delete out;
+	}
 }
 
 device_memory& DisplayBuffer::rgba_data()

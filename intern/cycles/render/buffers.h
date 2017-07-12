@@ -42,7 +42,10 @@ public:
 	/* width/height of the physical buffer */
 	int width;
 	int height;
-
+	
+	/* number of frames stored in this buffer (used for standalone denoising) */
+	int frames;
+	
 	/* offset into and width/height of the full buffer */
 	int full_x;
 	int full_y;
@@ -54,6 +57,8 @@ public:
 	bool denoising_data_pass;
 	/* If only some light path types should be denoised, an additional pass is needed. */
 	bool denoising_clean_pass;
+	
+	bool cross_denoising;
 
 	/* functions */
 	BufferParams();
@@ -85,10 +90,15 @@ public:
 	void reset(Device *device, BufferParams& params);
 
 	bool copy_from_device(Device *from_device = NULL);
+	bool copy_to_device(Device *to_device = NULL);
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 	bool get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels);
+	
+	bool set_denoising_pass_rect(int offset, float exposure, int sample, int components, int4 rect, float *pixels, int frame);
+	bool set_combined_pass_rect(int4 rect, float* pixels, int frame, int sample);
 
 protected:
+	int4 rect_to_local(int4 rect);
 	void device_free();
 };
 
