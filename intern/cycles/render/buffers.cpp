@@ -242,7 +242,7 @@ for(int x = rect.x; x < rect.z; x++, in += pass_stride, pixels += components)
 
 bool RenderBuffers::set_denoising_pass_rect(int offset, float exposure, int sample, int components, int4 rect, float *pixels, int frame)
 {
-	float scale = 1.0f/sample;
+	float scale = sample;
 	
 	if(offset == DENOISING_PASS_COLOR) {
 		scale *= exposure;

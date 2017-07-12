@@ -205,8 +205,7 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 					case DENOISING_PASS_READ_CLEAN:       continue; break;
 				}
 				
-				//buffers->get_denoising_pass_rect(samples, i->first.num_channels, rect, pass_data, framenum);
-				buffers->set_denoising_pass_rect(type_offset, samples, exposure, i->first.num_channels, rect, pass_data, framenum);
+				buffers->set_denoising_pass_rect(type_offset, exposure, samples, i->first.num_channels, rect, pass_data, framenum);
 			}
 
 			/* Read combined pass. */
