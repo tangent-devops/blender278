@@ -43,8 +43,8 @@ public:
 	Tile()
 	{}
 
-	Tile(int index_, int x_, int y_, int w_, int h_, int device_, State state_ = RENDER)
-	: index(index_), x(x_), y(y_), w(w_), h(h_), device(device_), state(state_), buffers(NULL) {}
+	Tile(int index_, int x_, int y_, int w_, int h_, int device_, State state_ = RENDER, RenderBuffers *buffers_ = NULL)
+	: index(index_), x(x_), y(y_), w(w_), h(h_), device(device_), state(state_), buffers(buffers_) {}
 };
 
 /* Tile order */
@@ -69,6 +69,7 @@ public:
 		vector<Tile> tiles;
 		int tile_stride;
 		BufferParams buffer;
+		RenderBuffers *global_buffers;
 		int sample;
 		int num_samples;
 		int resolution_divider;
@@ -88,7 +89,8 @@ public:
 	int num_samples;
 
 	TileManager(bool progressive, int num_samples, int2 tile_size, int start_resolution,
-	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1, int pixel_size = 1);
+	            bool preserve_tile_device, bool background, TileOrder tile_order, int num_devices = 1,
+				int pixel_size = 1, bool only_denoise = false);
 	~TileManager();
 
 	void free_device();
@@ -124,6 +126,10 @@ protected:
 	int start_resolution;
 	int pixel_size;
 	int num_devices;
+	
+	/* If this flag is set, the TileManager will only generate tiles for denoising,
+	 * not for rendering. */
+	bool only_denoise;
 
 	/* in some cases it is important that the same tile will be returned for the same
 	 * device it was originally generated for (i.e. viewport rendering when buffer is

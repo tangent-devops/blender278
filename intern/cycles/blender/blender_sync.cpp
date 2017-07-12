@@ -675,37 +675,31 @@ bool BlenderSync::get_session_pause(BL::Scene& b_scene, bool background)
 	return (background)? false: get_boolean(cscene, "preview_pause");
 }
 
-SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
-                                              BL::UserPreferences& b_userpref,
-                                              BL::Scene& b_scene,
-                                              bool background)
+
+DeviceInfo BlenderSync::get_device_info(BL::UserPreferences& b_userpref, int device_type)
 {
-	SessionParams params;
-	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-
-	/* feature set */
-	params.experimental = (get_enum(cscene, "feature_set") != 0);
-
+	DeviceInfo cpu;
+	
 	/* device type */
 	vector<DeviceInfo>& devices = Device::available_devices();
 	
 	/* device default CPU */
 	foreach(DeviceInfo& device, devices) {
 		if(device.type == DEVICE_CPU) {
-			params.device = device;
+			cpu = device;
 			break;
 		}
 	}
-
-	if(get_enum(cscene, "device") == 2) {
+	
+	if(device_type == 2) {
 		/* find network device */
 		foreach(DeviceInfo& info, devices)
-			if(info.type == DEVICE_NETWORK)
-				params.device = info;
+		if(info.type == DEVICE_NETWORK)
+			return info;
 	}
-	else if(get_enum(cscene, "device") == 1) {
+	else if(device_type == 1) {
 		PointerRNA b_preferences;
-
+		
 		BL::UserPreferences::addons_iterator b_addon_iter;
 		for(b_userpref.addons.begin(b_addon_iter); b_addon_iter != b_userpref.addons.end(); ++b_addon_iter) {
 			if(b_addon_iter->module() == "cycles") {
@@ -713,9 +707,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 				break;
 			}
 		}
-
+		
 		int compute_device = get_enum(b_preferences, "compute_device_type");
-
+		
 		if(compute_device != 0) {
 			vector<DeviceInfo> used_devices;
 			RNA_BEGIN(&b_preferences, device, "devices") {
@@ -729,17 +723,33 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 					}
 				}
 			} RNA_END
-
+			
 			if(used_devices.size() == 1) {
-				params.device = used_devices[0];
+				return used_devices[0];
 			}
 			else if(used_devices.size() > 1) {
-				params.device = Device::get_multi_device(used_devices);
+				return Device::get_multi_device(used_devices);
 			}
 			/* Else keep using the CPU device that was set before. */
 		}
 	}
+	
+	return cpu;
+}
 
+SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
+                                              BL::UserPreferences& b_userpref,
+                                              BL::Scene& b_scene,
+                                              bool background)
+{
+	SessionParams params;
+	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+
+	/* feature set */
+	params.experimental = (get_enum(cscene, "feature_set") != 0);
+	
+	params.device = BlenderSync::get_device_info(b_userpref, get_enum(cscene, "device"));
+	
 	/* Background */
 	params.background = background;
 

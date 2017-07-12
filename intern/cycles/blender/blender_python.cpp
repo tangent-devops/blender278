@@ -29,6 +29,8 @@
 #include "util/util_string.h"
 #include "util/util_types.h"
 
+#include "render/denoising.h"
+
 #ifdef WITH_OSL
 #include "render/osl.h"
 
@@ -743,6 +745,61 @@ static PyObject *get_device_types_func(PyObject * /*self*/, PyObject * /*args*/)
 	return list;
 }
 
+static PointerRNA get_user_preferences()
+{
+	PyObject *bpy = PyImport_ImportModule("bpy");
+	PyObject *pycontext = PyObject_GetAttrString(bpy, "context");
+	PyObject *pyuserpref = PyObject_GetAttrString(pycontext, "user_preferences");
+	PyObject *pyptr = PyObject_CallMethod(pyuserpref, "as_pointer", NULL);
+	
+	PointerRNA ptr;
+	RNA_pointer_create(NULL, &RNA_UserPreferences, (void*)PyLong_AsVoidPtr(pyptr), &ptr);
+	
+	Py_DECREF(pyptr);
+	Py_DECREF(pyuserpref);
+	Py_DECREF(pycontext);
+	Py_DECREF(bpy);
+	
+	return ptr;
+}
+
+static PyObject *denoise_files_func(PyObject * /*self*/, PyObject *args, PyObject *keywords)
+{
+	SessionParams session_params;
+	session_params.samples = 128;
+	session_params.threads = 0;
+	
+	PyObject *pyframelist;
+	int midframe, half_output = 0, use_gpu = 0;
+	const char *output = NULL;
+	
+	static const char* keylist[] = {"frames", "midframe", "output", "half_float", "use_gpu", "samples", "threads", "tile_x", "tile_y",};
+	if(!PyArg_ParseTupleAndKeywords(args, keywords, "Ois|ppiiiiff", const_cast<char **>(keylist), &pyframelist, &midframe, &output, &half_output, &use_gpu,
+									&session_params.samples, &session_params.threads, &session_params.tile_size.x, &session_params.tile_size.y)) {
+		return NULL;
+	}
+	//session_params.output_half_float = (half_output > 0);
+	session_params.output_path = string(output);
+	
+	BL::UserPreferences b_userpref(get_user_preferences());
+	session_params.device = BlenderSync::get_device_info(b_userpref, use_gpu);
+	
+	int numframes = PyList_Size(pyframelist);
+	if(numframes < 1) {
+		Py_RETURN_FALSE;
+	}
+	
+	vector<string> frames;
+	for(int i = 0; i < numframes; i++) {
+		frames.push_back(_PyUnicode_AsString(PyList_GetItem(pyframelist, i)));
+	}
+	
+	if(denoise_standalone(session_params, frames, midframe)) {
+		Py_RETURN_TRUE;
+	}
+	Py_RETURN_FALSE;
+}
+
 static PyMethodDef methods[] = {
 	{"init", init_func, METH_VARARGS, ""},
 	{"exit", exit_func, METH_VARARGS, ""},
@@ -774,6 +831,9 @@ static PyMethodDef methods[] = {
 	/* Compute Device selection */
 	{"get_device_types", get_device_types_func, METH_VARARGS, ""},
 
+	/* To run denoising on multilayer EXR files, separate from rendering */
+	{"denoise_files", (PyCFunction)denoise_files_func, METH_VARARGS|METH_KEYWORDS, ""},
+	
 	{NULL, NULL, 0, NULL},
 };
 
