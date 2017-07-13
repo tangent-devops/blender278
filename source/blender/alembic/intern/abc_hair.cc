@@ -230,18 +230,17 @@ void AbcHairWriter::write_hair_sample(DerivedMesh *dm,
 }
 
 void AbcHairWriter::write_hair_child_sample(DerivedMesh *dm,
-                                            ParticleSettings *part,
-                                            std::vector<Imath::V3f> &verts,
-                                            std::vector<Imath::V3f> &norm_values,
-                                            std::vector<Imath::V2f> &uv_values,
-                                            std::vector<int32_t> &hvertices)
+	ParticleSettings *part,
+	std::vector<Imath::V3f> &verts,
+	std::vector<Imath::V3f> &norm_values,
+	std::vector<Imath::V2f> &uv_values,
+	std::vector<int32_t> &hvertices)
 {
 	/* Get untransformed vertices, there's a xform under the hair. */
 	float inv_mat[4][4];
 	invert_m4_m4_safe(inv_mat, m_object->obmat);
 
 	MTFace *mtface = static_cast<MTFace *>(CustomData_get_layer(&dm->faceData, CD_MTFACE));
-	MFace *mface = dm->getTessFaceArray(dm);
 	MVert *mverts = dm->getVertArray(dm);
 
 	ParticleCacheKey **cache = m_psys->childcache;
@@ -251,7 +250,6 @@ void AbcHairWriter::write_hair_child_sample(DerivedMesh *dm,
 
 	for (int p = 0; p < m_psys->totchild; ++p, ++pc) {
 		path = cache[p];
-
 		if (part->from == PART_FROM_FACE &&
 			part->childtype != PART_CHILD_PARTICLES &&
 			mtface) {
