@@ -181,7 +181,6 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				for(int c = 0; c < i->first.num_channels; c++) {
 					int xstride = i->first.num_channels*sizeof(float);
 					int ystride = spec.width * xstride;
-					printf("Reading pass %s!            \r", spec.channelnames[i->second[c]].c_str());
 					fflush(stdout);
 					frame->read_image(i->second[c], i->second[c]+1, TypeDesc::FLOAT, pass_data + c, xstride, ystride);
 				}
@@ -203,6 +202,9 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 					case DENOISING_PASS_READ_IMAGE_B:     continue; break;
 					case DENOISING_PASS_READ_IMAGE_B_VAR: continue; break;
 					case DENOISING_PASS_READ_CLEAN:       continue; break;
+					default:
+						continue;
+						break;
 				}
 				
 				buffers->set_denoising_pass_rect(type_offset, exposure, samples, i->first.num_channels, rect, pass_data, framenum);
@@ -218,14 +220,13 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 				if(channel_id != -1) {
 					int xstride = 4*sizeof(float);
 					int ystride = spec.width * xstride;
-					printf("Reading pass %s!            \n", spec.channelnames[i].c_str());
 					fflush(stdout);
 					frame->read_image(i, i+1, TypeDesc::FLOAT, pass_data + channel_id, xstride, ystride);
 					read_combined++;
 				}
 			}
 			if(read_combined < 4) {
-				printf("ERROR: Frame %s: Missing combined pass!\n", file.c_str());
+				std::cerr << "ERROR: Frame %s: Missing combined pass: " <<  file.c_str() << std::endl;
 				delete buffers;
 				delete[] pass_data;
 				return NULL;
@@ -237,13 +238,13 @@ static RenderBuffers* load_frame(string file, Device *device, RenderBuffers *buf
 			delete[] pass_data;
 		}
 		else {
-			printf("ERROR: Frame %s: Missing some pass!\n", file.c_str());
+			std::cerr << "ERROR: Frame %s: Missing some pass: " << file.c_str() << std::endl;
 			delete buffers;
 			return NULL;
 		}
 	}
 	else {
-		printf("ERROR: Frame %s: Didn't fine a suitable RenderLayer!\n", file.c_str());
+		std::cerr << "ERROR: Frame %s: Didn't fine a suitable RenderLayer: " << file.c_str() << std::endl;
 		delete buffers;
 		return NULL;
 	}

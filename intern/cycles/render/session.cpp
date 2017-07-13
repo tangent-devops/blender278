@@ -1082,6 +1082,7 @@ void Session::render()
 		else {
 			task.pass_stride = buffers->params.get_passes_size();
 			task.pass_denoising_data = buffers->params.get_denoising_offset();
+			task.pass_denoising_clean = 0;
 		}
 	}
 
