@@ -20,7 +20,9 @@
 #define __KERNEL_GLOBALS_H__
 
 #ifdef __KERNEL_CPU__
-#  include "util/util_vector.h"
+#include <vector>
+#include "util/util_vector.h"
+#include "util/util_map.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -78,6 +80,10 @@ typedef struct KernelGlobals {
 
 	int2 global_size;
 	int2 global_id;
+
+	/* A buffer for storing per-pixel coverage for Cryptomatte. */
+	map<float, float> *coverage_object;
+	map<float, float> *coverage_material;
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */
