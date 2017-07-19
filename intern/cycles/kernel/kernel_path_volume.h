@@ -138,6 +138,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
 			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
 
+            Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, i);
+
 			int num_samples = light_select_num_samples(kg, i);
 			float num_samples_inv = 1.0f/(num_samples*kernel_data.integrator.num_all_lights);
 			RNG lamp_rng = cmj_hash(*rng, i);
@@ -173,7 +175,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						float3 shadow;
 
                         /* This is an experiment - it was originally shadow_blocked */
-						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking)) {
+						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
 							/* accumulate */
 							path_radiance_accum_light(L, tp*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
@@ -189,6 +191,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
 			int num_samples = kernel_data.integrator.mesh_light_samples;
 			float num_samples_inv = 1.0f/num_samples;
+
+            Transform shadow_map_tfm = transform_identity();
 
 			for(int j = 0; j < num_samples; j++) {
 				/* sample random position on random triangle */
@@ -226,7 +230,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						float3 shadow;
 
                         /* This is an experiment - it was originally shadow_blocked */
-						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking)) {
+						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
 							/* accumulate */
 							path_radiance_accum_light(L, tp*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
@@ -243,6 +247,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 		float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
 		float light_u, light_v;
 		path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
+
+        Transform shadow_map_tfm = transform_identity();
 
 		LightSample ls;
 		light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, state->bounce, light_linking, &ls);
@@ -268,7 +274,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				float3 shadow;
 
 /* This is an experiment - it was originally shadow_blocked */
-				if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking)) {
+				if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
 					/* accumulate */
 					path_radiance_accum_light(L, tp, &L_light, shadow, 1.0f, state->bounce, is_lamp);
 				}

@@ -54,6 +54,9 @@ public:
 
 	int map_resolution;
 
+	Transform shadow_map_tfm;
+    int shadow_map_resolution;
+
 	float spot_angle;
 	float spot_smooth;
 

@@ -776,9 +776,10 @@ void LightManager::device_update_points(Device *device,
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
+        Transform shadow_map_tfm = light->shadow_map_tfm;
 		memcpy(&light_data[light_index*LIGHT_SIZE + 6], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, sizeof(float4)*3);
-
+		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*3);
 
 		light_index++;
 	}
@@ -812,8 +813,10 @@ void LightManager::device_update_points(Device *device,
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
+        Transform shadow_map_tfm = light->shadow_map_tfm;
 		memcpy(&light_data[light_index*LIGHT_SIZE + 6], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, sizeof(float4)*3);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*3);
 
 		light_index++;
 	}

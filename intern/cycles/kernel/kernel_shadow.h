@@ -41,12 +41,15 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
- ccl_device_inline bool shadow_blocked_simple(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking)
+ ccl_device_inline bool shadow_blocked_simple(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking, Transform *shadow_map_tfm)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
 	if (ray->t == 0.0f)
 		return false;
+
+    // Project into shadowmap space
+    float3 sm_coords = transform_point(shadow_map_tfm, ray->P);
 
 	bool blocked;
 
@@ -219,7 +222,8 @@ ccl_device_noinline bool shadow_blocked_simple(KernelGlobals *kg,
 											   ccl_addr_space PathState *state,
 											   ccl_addr_space Ray *ray_input,
 											   float3 *shadow,
-											   uint shadow_linking)
+											   uint shadow_linking,
+                                               Transform shadow_map_tfm)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
