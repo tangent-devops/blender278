@@ -66,6 +66,7 @@ public:
 	bool use_glossy;
 	bool use_transmission;
 	bool use_scatter;
+    bool use_shadow_map;
 
 	bool is_portal;
 	bool is_enabled;

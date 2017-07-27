@@ -652,6 +652,10 @@ void LightManager::device_update_points(Device *device,
         float light_linking = __uint_as_float(light->light_linking);
         float shadow_linking = __uint_as_float(light->shadow_linking);
 
+        if (light->shadow_map_resolution > 0) {
+
+        }
+
 		if(!light->cast_shadow)
 			shader_id &= ~SHADER_CAST_SHADOW;
 
