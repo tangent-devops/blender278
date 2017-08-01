@@ -56,15 +56,15 @@ CCL_NAMESPACE_BEGIN
         if (sm_coords.x < 0.0F || sm_coords.x > 1.0F || sm_coords.y < 0.0F || sm_coords.y > 1.0F)
             return false;
 
-        float4 sm_depth = svm_image_texture(kg, shadow_map_slot, sm_coords.x, sm_coords.y, false, true);
+        float4 sm_depth = svm_image_texture(kg, shadow_map_slot, sm_coords.x, sm_coords.y, false, false);
 
         // If we have not computed depth before, then do it!
         if (sm_depth.z == 0.0F) {
 
             // Calculate a new ray from light
             Ray sm_ray;
-            sm_ray.P = ray_offset(ls->P, ls->Ng);
-            sm_ray.D = ray->P - sm_ray.P;
+            sm_ray.P = ls->P;
+            sm_ray.D = ray->P - ls->P;
             sm_ray.D = normalize_len(sm_ray.D, &sm_ray.t);
             sm_ray.t = FLT_MAX;
             sm_ray.dP = differential3_zero();

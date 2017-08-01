@@ -112,19 +112,6 @@ template<typename T> struct texture  {
 	int width;
 };
 
-template<typename T> struct writer {
-    static T write (float4 d) {
-		kernel_assert(false);
-        return T();
-    }
-};
-
-template<> struct writer<float4> {
-    static float4 write (float4 d) {
-        return d;
-    }
-};
-
 template<typename T> struct texture_image  {
 #define SET_CUBIC_SPLINE_WEIGHTS(u, t) \
 	{ \
@@ -169,11 +156,20 @@ template<typename T> struct texture_image  {
 		return make_float4(f, f, f, 1.0f);
 	}
 
+	ccl_always_inline void write(float4 r, float4 &ro)
+	{
+        ro = r;
+	}
+
+
     ccl_always_inline void write(float x, float y, float4 r)
     {
+        T ro;
+        write(r,ro);
+
         int xi = x * (float)width;
         int yi = y * (float)height;
-        data[yi*width+xi] = writer<T>::write(r);
+        data[yi*width+xi] = ro;
     }
 
 	ccl_always_inline int wrap_periodic(int x, int width)
