@@ -60,7 +60,7 @@ ccl_device_inline void kernel_path_volume_connect_light(
 			}
 		}
 	}
-#endif
+#endif /* __EMISSION__ */
 }
 
 #ifdef __KERNEL_GPU__
@@ -68,8 +68,14 @@ ccl_device_noinline
 #else
 ccl_device
 #endif
-bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
-	ShaderData *sd, float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
+bool kernel_path_volume_bounce(
+    KernelGlobals *kg,
+    RNG *rng,
+    ShaderData *sd,
+    ccl_addr_space float3 *throughput,
+    ccl_addr_space PathState *state,
+    PathRadiance *L,
+    ccl_addr_space Ray *ray)
 {
 	/* sample phase function */
 	float phase_pdf;
@@ -112,6 +118,7 @@ bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
 	return true;
 }
 
+#ifdef __BRANCHED_PATH__
 ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, ShaderData *emission_sd, float3 throughput, PathState *state, PathRadiance *L,
 	bool sample_all_lights, Ray *ray, const VolumeSegment *segment)
@@ -137,6 +144,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, i*LIGHT_SIZE + 5);
 			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
 			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
+            uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
+			int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
 
             Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, i);
 
@@ -175,7 +184,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						float3 shadow;
 
                         /* This is an experiment - it was originally shadow_blocked */
-						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
+						if (!shadow_blocked_simple(kg, emission_sd, &ls, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm, shadow_map_resolution, shadow_map_slot)) {
 							/* accumulate */
 							path_radiance_accum_light(L, tp*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
@@ -189,10 +198,12 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
 			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
 			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
+            uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
+			int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
 			int num_samples = kernel_data.integrator.mesh_light_samples;
 			float num_samples_inv = 1.0f/num_samples;
 
-            Transform shadow_map_tfm = transform_identity();
+            Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, 0);
 
 			for(int j = 0; j < num_samples; j++) {
 				/* sample random position on random triangle */
@@ -230,7 +241,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						float3 shadow;
 
                         /* This is an experiment - it was originally shadow_blocked */
-						if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
+						if (!shadow_blocked_simple(kg, emission_sd, &ls, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm, shadow_map_resolution, shadow_map_slot)) {
 							/* accumulate */
 							path_radiance_accum_light(L, tp*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
@@ -243,12 +254,15 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 		float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
 		uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
 		uint light_linking = __float_as_uint(light_and_shadow_linking.y);
+        uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
+        int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
+
 		/* sample random position on random light */
 		float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
 		float light_u, light_v;
 		path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
 
-        Transform shadow_map_tfm = transform_identity();
+        Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, 0);
 
 		LightSample ls;
 		light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, state->bounce, light_linking, &ls);
@@ -274,17 +288,18 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				float3 shadow;
 
 /* This is an experiment - it was originally shadow_blocked */
-				if (!shadow_blocked_simple(kg, emission_sd, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm)) {
+				if (!shadow_blocked_simple(kg, emission_sd, &ls, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm, shadow_map_resolution, shadow_map_slot)) {
 					/* accumulate */
 					path_radiance_accum_light(L, tp, &L_light, shadow, 1.0f, state->bounce, is_lamp);
 				}
 			}
 		}
 	}
-#endif
+#endif /* __EMISSION__ */
 }
+#endif /* __SPLIT_KERNEL__ */
 
-#endif
+#endif /* __VOLUME_SCATTER__ */
 
 CCL_NAMESPACE_END
 

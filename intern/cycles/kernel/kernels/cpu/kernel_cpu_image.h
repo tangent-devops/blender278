@@ -21,6 +21,16 @@
 
 CCL_NAMESPACE_BEGIN
 
+ccl_device void kernel_tex_image_write_impl(KernelGlobals *kg, int tex, float x, float y, float4 r)
+{
+	switch(kernel_tex_type(tex)) {
+		case IMAGE_DATA_TYPE_FLOAT4:
+            kg->texture_float4_images[kernel_tex_index(tex)].write(x, y, r);
+		default:
+			; // do nothing
+	}
+}
+
 ccl_device float4 kernel_tex_image_interp_impl(KernelGlobals *kg, int tex, float x, float y)
 {
 	switch(kernel_tex_type(tex)) {

@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-#include "background.h"
-#include "device.h"
-#include "integrator.h"
-#include "film.h"
-#include "light.h"
-#include "mesh.h"
-#include "object.h"
-#include "scene.h"
-#include "shader.h"
+#include "render/background.h"
+#include "device/device.h"
+#include "render/integrator.h"
+#include "render/film.h"
+#include "render/light.h"
+#include "render/mesh.h"
+#include "render/object.h"
+#include "render/scene.h"
+#include "render/shader.h"
 
-#include "util_foreach.h"
-#include "util_progress.h"
-#include "util_logging.h"
+#include "util/util_foreach.h"
+#include "util/util_progress.h"
+#include "util/util_logging.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -57,9 +57,9 @@ static void shade_background_pixels(Device *device, DeviceScene *dscene, int res
 
 	device->const_copy_to("__data", &dscene->data, sizeof(dscene->data));
 
-	device->mem_alloc(d_input, MEM_READ_ONLY);
+	device->mem_alloc("shade_background_pixels_input", d_input, MEM_READ_ONLY);
 	device->mem_copy_to(d_input);
-	device->mem_alloc(d_output, MEM_WRITE_ONLY);
+	device->mem_alloc("shade_background_pixels_output", d_output, MEM_WRITE_ONLY);
 
 	DeviceTask main_task(DeviceTask::SHADER);
 	main_task.shader_input = d_input.device_pointer;
@@ -155,6 +155,9 @@ Light::Light()
 
     shadow_linking = 0;
     shadow_linking_prev = 0;
+
+    shadow_map_slot = 0;
+    shadow_map_resolution = 0;
 }
 
 void Light::tag_update(Scene *scene)
@@ -491,10 +494,18 @@ static void background_cdf(int start,
                            float2 *cond_cdf)
 {
 	/* Conditional CDFs (rows, U direction). */
+	/* NOTE: It is possible to have some NaN pixels on background
+	 * which will ruin CDF causing wrong shading. We replace such
+	 * pixels with black.
+	 */
 	for(int i = start; i < end; i++) {
 		float sin_theta = sinf(M_PI_F * (i + 0.5f) / res);
 		float3 env_color = (*pixels)[i * res];
 		float ave_luminance = average(env_color);
+		/* TODO(sergey): Consider adding average_safe(). */
+		if(!isfinite(ave_luminance)) {
+			ave_luminance = 0.0f;
+		}
 
 		cond_cdf[i * cdf_count].x = ave_luminance * sin_theta;
 		cond_cdf[i * cdf_count].y = 0.0f;
@@ -502,6 +513,9 @@ static void background_cdf(int start,
 		for(int j = 1; j < res; j++) {
 			env_color = (*pixels)[i * res + j];
 			ave_luminance = average(env_color);
+			if(!isfinite(ave_luminance)) {
+				ave_luminance = 0.0f;
+			}
 
 			cond_cdf[i * cdf_count + j].x = ave_luminance * sin_theta;
 			cond_cdf[i * cdf_count + j].y = cond_cdf[i * cdf_count + j - 1].y + cond_cdf[i * cdf_count + j - 1].x / res;
@@ -652,8 +666,27 @@ void LightManager::device_update_points(Device *device,
         float light_linking = __uint_as_float(light->light_linking);
         float shadow_linking = __uint_as_float(light->shadow_linking);
 
+        // Create a shadowmap
         if (light->shadow_map_resolution > 0) {
+            ImageManager::InternalImageHeader header;
+            header.width = light->shadow_map_resolution;
+            header.height = light->shadow_map_resolution;
 
+            uint data_size = sizeof(ImageManager::InternalImageHeader) + header.width * header.height * sizeof(float4);
+            boost::shared_ptr<uint8_t> generated_data = boost::shared_ptr<uint8_t>(new uint8_t[data_size]);
+
+            // Build cycles internal texture
+            ::memcpy(generated_data.get(), &header, sizeof(header));
+            ::memset(generated_data.get() + sizeof(header), 0, data_size);
+
+            bool is_float_bool, linear;
+            light->shadow_map_slot = scene->image_manager->add_image("sm", NULL, generated_data,
+                                                        true, 0, is_float_bool, linear,
+                                                        INTERPOLATION_CLOSEST,
+                                                        EXTENSION_CLIP,
+                                                        false);
+        } else {
+            light->shadow_map_slot = -1;
         }
 
 		if(!light->cast_shadow)
@@ -776,14 +809,14 @@ void LightManager::device_update_points(Device *device,
 		}
 
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
-        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, 0.0f, 0.0f);
+        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, __int_as_float(light->shadow_map_resolution), __int_as_float(light->shadow_map_slot));
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
         Transform shadow_map_tfm = light->shadow_map_tfm;
 		memcpy(&light_data[light_index*LIGHT_SIZE + 6], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, sizeof(float4)*3);
-		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*3);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*4);
 
 		light_index++;
 	}
@@ -813,7 +846,7 @@ void LightManager::device_update_points(Device *device,
 		light_data[light_index*LIGHT_SIZE + 2] = make_float4(invarea, axisv.x, axisv.y, axisv.z);
 		light_data[light_index*LIGHT_SIZE + 3] = make_float4(-1, dir.x, dir.y, dir.z);
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, 0.0f, 0.0f, 0.0f);
-        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, 0.0f, 0.0f);
+        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, __int_as_float(light->shadow_map_resolution), __int_as_float(light->shadow_map_slot));
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);

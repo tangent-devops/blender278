@@ -16,27 +16,27 @@
 
 #include <stdlib.h>
 
-#include "background.h"
-#include "bake.h"
-#include "camera.h"
-#include "curves.h"
-#include "device.h"
-#include "film.h"
-#include "integrator.h"
-#include "light.h"
-#include "mesh.h"
-#include "object.h"
-#include "osl.h"
-#include "particles.h"
-#include "scene.h"
-#include "shader.h"
-#include "svm.h"
-#include "tables.h"
+#include "render/background.h"
+#include "render/bake.h"
+#include "render/camera.h"
+#include "render/curves.h"
+#include "device/device.h"
+#include "render/film.h"
+#include "render/integrator.h"
+#include "render/light.h"
+#include "render/mesh.h"
+#include "render/object.h"
+#include "render/osl.h"
+#include "render/particles.h"
+#include "render/scene.h"
+#include "render/shader.h"
+#include "render/svm.h"
+#include "render/tables.h"
 
-#include "util_foreach.h"
-#include "util_guarded_allocator.h"
-#include "util_logging.h"
-#include "util_progress.h"
+#include "util/util_foreach.h"
+#include "util/util_guarded_allocator.h"
+#include "util/util_logging.h"
+#include "util/util_progress.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -186,6 +186,11 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
+	progress.set_status("Updating Lights");
+	light_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
 	progress.set_status("Updating Images");
 	image_manager->device_update(device, &dscene, this, progress);
 
@@ -203,11 +208,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Lookup Tables");
 	lookup_tables->device_update(device, &dscene);
-
-	if(progress.get_cancel() || device->have_error()) return;
-
-	progress.set_status("Updating Lights");
-	light_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
