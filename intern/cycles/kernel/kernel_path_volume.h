@@ -268,7 +268,6 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
             shadow_linking = 0x00FFFFFF;
             shadow_map_resolution = 0;
             shadow_map_slot = -1;
-            shadow_map_tfm = transform_identity();
         } else {
             int lamp = -prim-1;
 

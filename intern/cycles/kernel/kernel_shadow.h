@@ -50,8 +50,8 @@ CCL_NAMESPACE_BEGIN
 
     if (shadow_map_slot >= 0) {
         // Project into shadowmap space
-        float3 sm_coords = transform_point(shadow_map_tfm, ray->P);
-        sm_coords = sm_coords / sm_coords.w;
+        float3 sm_coords = transform_perspective(shadow_map_tfm, ray->P);
+        //sm_coords = sm_coords / sm_coords.w;
 
         if (sm_coords.x < 0.0F || sm_coords.x > 1.0F || sm_coords.y < 0.0F || sm_coords.y > 1.0F)
             return false;
