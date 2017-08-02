@@ -82,6 +82,14 @@ void rtc_filter_func(void*, RTCRay& ray_)
 				/* this tells embree to continue tracing */
 				ray.geomID = RTC_INVALID_GEOMETRY_ID;
 			}
+			else {
+				ray.num_hits = ray.max_hits+1;
+			}
+		}
+		else {
+			/* Increase the number of hits beyond ray.max_hits
+			 * so that the caller can detect this as opaque. */
+			ray.num_hits++;
 		}
 		return;
 	}
