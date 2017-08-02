@@ -289,13 +289,8 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 										uint shadow_linking)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
-<<<<<<< HEAD
-	
-	if(ray_input->t == 0.0f)
-=======
 
 	if (ray_input->t == 0.0f)
->>>>>>> ReactivateCurveTexture
 		return false;
 
 #ifdef __SPLIT_KERNEL__
