@@ -142,8 +142,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				continue;
 
 			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, i*LIGHT_SIZE + 5);
-			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
-			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
+			uint light_linking = __float_as_uint(light_and_shadow_linking.x);
+			uint shadow_linking = __float_as_uint(light_and_shadow_linking.y);
             uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
 			int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
 
@@ -195,15 +195,8 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 
 		/* mesh light sampling */
 		if(kernel_data.integrator.pdf_triangles != 0.0f) {
-			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
-			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
-			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
-            uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
-			int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
 			int num_samples = kernel_data.integrator.mesh_light_samples;
 			float num_samples_inv = 1.0f/num_samples;
-
-            Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, 0);
 
 			for(int j = 0; j < num_samples; j++) {
 				/* sample random position on random triangle */
@@ -214,6 +207,10 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				/* only sample triangle lights */
 				if(kernel_data.integrator.num_all_lights)
 					light_t = 0.5f*light_t;
+
+                //float4 light_and_shadow_linking = kernel_tex_fetch(__objects, tri_object*OBJECT_SIZE + OBJECT_LIGHT_LINKING);
+                uint light_linking = 0x00FFFFFF;
+                uint shadow_linking = 0x00FFFFFF;
 
 				LightSample ls;
 				light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, state->bounce, light_linking, &ls);
@@ -241,7 +238,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						float3 shadow;
 
                         /* This is an experiment - it was originally shadow_blocked */
-						if (!shadow_blocked_simple(kg, emission_sd, &ls, state, &light_ray, &shadow, shadow_linking, &shadow_map_tfm, shadow_map_resolution, shadow_map_slot)) {
+						if (!shadow_blocked(kg, emission_sd, state, &light_ray, &shadow, shadow_linking)) {
 							/* accumulate */
 							path_radiance_accum_light(L, tp*num_samples_inv, &L_light, shadow, num_samples_inv, state->bounce, is_lamp);
 						}
@@ -251,18 +248,37 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 		}
 	}
 	else {
-		float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
-		uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
-		uint light_linking = __float_as_uint(light_and_shadow_linking.y);
-        uint shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
-        int shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
 
 		/* sample random position on random light */
 		float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
 		float light_u, light_v;
 		path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
 
-        Transform shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, 0);
+        /* sample index */
+        int index = light_distribution_sample(kg, light_t);
+        float4 l = kernel_tex_fetch(__light_distribution, index);
+        int prim = __float_as_int(l.y);
+
+        uint light_linking, shadow_linking, shadow_map_resolution;
+        int shadow_map_slot;
+        Transform shadow_map_tfm;
+
+        if(prim >= 0) {
+            light_linking = 0x00FFFFFF;
+            shadow_linking = 0x00FFFFFF;
+            shadow_map_resolution = 0;
+            shadow_map_slot = -1;
+            shadow_map_tfm = transform_identity();
+        } else {
+            int lamp = -prim-1;
+
+            float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 5);
+			light_linking = __float_as_uint(light_and_shadow_linking.x);
+			shadow_linking = __float_as_uint(light_and_shadow_linking.y);
+            shadow_map_resolution = __float_as_uint(light_and_shadow_linking.z);
+			shadow_map_slot = __float_as_int(light_and_shadow_linking.w);
+            shadow_map_tfm = lamp_fetch_shadowmap_transform(kg, lamp);
+        }
 
 		LightSample ls;
 		light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, state->bounce, light_linking, &ls);
