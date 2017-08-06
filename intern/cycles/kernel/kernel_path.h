@@ -1015,8 +1015,6 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 		kernel_path_integrate(kg, &rng, sample, ray, buffer);
 	else
 		kernel_write_result(kg, buffer, sample, NULL, 0.0f, false);
-
-	path_rng_end(kg, rng_state, rng);
 }
 
 CCL_NAMESPACE_END

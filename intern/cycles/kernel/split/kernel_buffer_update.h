@@ -117,8 +117,6 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
 
 		kernel_write_result(kg, buffer, sample, L, *L_transparent, state->flag & PATH_RAY_SHADOW_CATCHER);
 
-		path_rng_end(kg, rng_state, rng);
-
 		ASSIGN_RAY_STATE(ray_state, ray_index, RAY_TO_REGENERATE);
 	}
 
@@ -166,7 +164,6 @@ ccl_device void kernel_buffer_update(KernelGlobals *kg,
 				/* These rays do not participate in path-iteration. */
 				kernel_write_result(kg, buffer, sample, NULL, 0.0f, false);
 
-				path_rng_end(kg, rng_state, rng);
 
 				ASSIGN_RAY_STATE(ray_state, ray_index, RAY_TO_REGENERATE);
 			}
