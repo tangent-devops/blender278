@@ -734,11 +734,12 @@ public:
 					path_trace(task, tile, kg, coverage_object, coverage_material);
 				}
 				if(kg->__data.film.use_cryptomatte & CRYPT_ACCURATE) {
+					int aov_index = 0;
 					if(kg->__data.film.use_cryptomatte & CRYPT_OBJECT) {
-						flatten_coverage(kg, coverage_object, tile);
+						aov_index += flatten_coverage(kg, coverage_object, tile, aov_index);
 					}
 					if(kg->__data.film.use_cryptomatte & CRYPT_MATERIAL) {
-						flatten_coverage(kg, coverage_material, tile);
+						aov_index += flatten_coverage(kg, coverage_material, tile, aov_index);
 					}
 				}
 			}
