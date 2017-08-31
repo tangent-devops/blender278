@@ -74,6 +74,11 @@ typedef struct KernelGlobals {
 	VolumeStep *decoupled_volume_steps[2];
 	int decoupled_volume_steps_index;
 
+	/* A buffer for storing per-pixel coverage for Cryptomatte. */
+	map<float, float> *coverage_object;
+	map<float, float> *coverage_material;
+	map<float, float> *coverage_asset;
+
 	/* split kernel */
 	SplitData split_data;
 	SplitParams split_param_data;
@@ -81,9 +86,6 @@ typedef struct KernelGlobals {
 	int2 global_size;
 	int2 global_id;
 
-	/* A buffer for storing per-pixel coverage for Cryptomatte. */
-	map<float, float> *coverage_object;
-	map<float, float> *coverage_material;
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */

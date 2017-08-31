@@ -342,6 +342,16 @@ ccl_device_inline float object_cryptomatte_id(KernelGlobals *kg, int object)
 	return f.x;
 }
 
+ccl_device_inline float object_cryptomatte_asset_id(KernelGlobals *kg, int object)
+{
+	if(object == OBJECT_NONE)
+		return 0;
+
+	int offset = object*OBJECT_SIZE + OBJECT_CRYPTOMATTE;
+	float4 f = kernel_tex_fetch(__objects, offset);
+	return f.y;
+}
+
 /* Particle data from which object was instanced */
 
 ccl_device_inline float particle_index(KernelGlobals *kg, int particle)
