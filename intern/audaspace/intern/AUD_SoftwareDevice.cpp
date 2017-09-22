@@ -74,8 +74,10 @@ bool AUD_SoftwareDevice::AUD_SoftwareHandle::pause(bool keep)
 					m_device->m_playingSounds.erase(it);
 					m_device->m_pausedSounds.push_back(This);
 
-					if(m_device->m_playingSounds.empty())
-						m_device->playing(m_device->m_playback = false);
+					if(m_device->m_playingSounds.empty()) {
+                        m_device->m_playback = false;
+						m_device->playing(m_device->m_playback);
+                    }
 
 					m_status = keep ? AUD_STATUS_STOPPED : AUD_STATUS_PAUSED;
 
@@ -279,8 +281,10 @@ bool AUD_SoftwareDevice::AUD_SoftwareHandle::resume()
 
 					m_device->m_playingSounds.push_back(This);
 
-					if(!m_device->m_playback)
-						m_device->playing(m_device->m_playback = true);
+					if(!m_device->m_playback) {
+                        m_device->m_playback = true;
+						m_device->playing(m_device->m_playback);
+                    }
 					m_status = AUD_STATUS_PLAYING;
 
 					return true;

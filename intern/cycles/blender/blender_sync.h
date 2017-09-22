@@ -108,7 +108,8 @@ public:
 	                                      int width, int height);
 
 	static PassType get_pass_type(BL::RenderPass& b_pass);
-	bool BKE_object_is_modified(BL::Object& b_ob);
+//	bool BKE_object_is_modified(BL::Object& b_ob);
+	static int get_denoising_pass(BL::RenderPass& b_pass);
 
 private:
 	/* sync */
@@ -156,6 +157,7 @@ private:
 	                        BL::Object& b_ob,
 	                        int width, int height,
 	                        float motion_time);
+    array<Pass> sync_render_passes(BL::RenderLayer& b_rlay, BL::SceneRenderLayer& b_srlay);
 
 	/* particles */
 	bool sync_dupli_particle(BL::Object& b_ob,

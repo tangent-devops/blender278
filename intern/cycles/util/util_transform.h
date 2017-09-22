@@ -192,14 +192,14 @@ ccl_device_inline Transform operator*(const Transform a, const Transform b)
 	return t;
 }
 
-ccl_device_inline void print_transform(const char *label, const Transform& t)
-{
-	print_float4(label, t.x);
-	print_float4(label, t.y);
-	print_float4(label, t.z);
-	print_float4(label, t.w);
-	printf("\n");
-}
+//ccl_device_inline void print_transform(const char *label, const Transform& t)
+//{
+//	print_float4(label, t.x);
+//	print_float4(label, t.y);
+//	print_float4(label, t.z);
+//	print_float4(label, t.w);
+//	printf("\n");
+//}
 
 ccl_device_inline Transform transform_translate(float3 t)
 {

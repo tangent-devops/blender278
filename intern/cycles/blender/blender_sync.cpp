@@ -553,88 +553,128 @@ PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
 	return PASS_NONE;
 }
 
-void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
-	                        BL::SceneRenderLayer& b_srlay,
-	                        bool advanced_shading)
+int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
 {
-	PassSettings passes;
+	string name = b_pass.name();
+	if(name.substr(0, 10) != "Denoising ") {
+		return -1;
+	}
+	name = name.substr(10);
 
-	if(advanced_shading) {
-		/* loop over passes */
-		BL::RenderLayer::passes_iterator b_pass_iter;
+#define MAP_PASS(passname, offset) if(name == passname) return offset;
+	MAP_PASS("Normal", DENOISING_PASS_NORMAL);
+	MAP_PASS("Normal Variance", DENOISING_PASS_NORMAL_VAR);
+	MAP_PASS("Albedo", DENOISING_PASS_ALBEDO);
+	MAP_PASS("Albedo Variance", DENOISING_PASS_ALBEDO_VAR);
+	MAP_PASS("Depth", DENOISING_PASS_DEPTH);
+	MAP_PASS("Depth Variance", DENOISING_PASS_DEPTH_VAR);
+	MAP_PASS("Shadow A", DENOISING_PASS_SHADOW_A);
+	MAP_PASS("Shadow B", DENOISING_PASS_SHADOW_B);
+	MAP_PASS("Image", DENOISING_PASS_COLOR);
+	MAP_PASS("Image Variance", DENOISING_PASS_COLOR_VAR);
+#undef MAP_PASS
 
-		for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-			BL::RenderPass b_pass(*b_pass_iter);
-			PassType pass_type = get_pass_type(b_pass);
+	return -1;
+}
 
-			if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
-				continue;
-			if(pass_type != PASS_NONE)
-				passes.add(pass_type);
-		}
-		
-		PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
-#ifdef __KERNEL_DEBUG__
-		if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
-			b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
-		}
-		if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
-			b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
-		}
-		if(get_boolean(crp, "pass_debug_bvh_intersections")) {
-			b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_BVH_INTERSECTIONS, passes);
-		}
-		if(get_boolean(crp, "pass_debug_ray_bounces")) {
-			b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
-			Pass::add(PASS_RAY_BOUNCES, passes);
-		}
-#endif
-		/* make Crypto passes appear before user defined AOVs
-		 * that way, their indices are known */
-		
-		int crypto_depth = std::min(16, get_int(crp, "pass_crypto_depth")) / 2;
-		scene->film->use_cryptomatte = crypto_depth;
-		
-		if(get_boolean(crp, "use_pass_crypto_object")) {
-			for(int i = 0; i < crypto_depth; ++i) {
-				string passname = string_printf("uCryptoObject%02d", i);
-				AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
-				passes.add(aov);
-				passname = "AOV " + passname;
-				b_engine.add_pass(passname.c_str(), 4, "RGBA", b_srlay.name().c_str());
-			}
-			scene->film->use_cryptomatte |= CRYPT_OBJECT;
-		}
-		
-		if(get_boolean(crp, "use_pass_crypto_material")) {
-			for(int i = 0; i < crypto_depth; ++i) {
-				string passname = string_printf("uCryptoMaterial%02d", i);
-				AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
-				passes.add(aov);
-				passname = "AOV " + passname;
-				b_engine.add_pass(passname.c_str(), 4, "RGBA", b_srlay.name().c_str());
-			}
-			scene->film->use_cryptomatte |= CRYPT_MATERIAL;
-		}
+array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
+                                            BL::SceneRenderLayer& b_srlay)
+{
+	array<Pass> passes;
+	Pass::add(PASS_COMBINED, passes);
 
-		if(get_boolean(crp, "pass_crypto_accurate")) {
-			scene->film->use_cryptomatte |= CRYPT_ACCURATE;
-		}
-		
-		RNA_BEGIN(&crp, b_aov, "aovs") {
-			bool is_color = RNA_enum_get(&b_aov, "type");
-			string name = get_string(b_aov, "name");
-			AOV aov = {ustring(name), 9999, is_color ? AOV_RGB : AOV_FLOAT};
-			passes.add(aov);
-			string passname = string_printf("AOV %s", name.c_str());
-			b_engine.add_pass(passname.c_str(), is_color? 3: 1, is_color? "RGB": "X", b_srlay.name().c_str());
-		} RNA_END
-		
+	if(!session_params.device.advanced_shading) {
+		return passes;
 	}
 
+	/* loop over passes */
+	BL::RenderLayer::passes_iterator b_pass_iter;
+
+	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+		BL::RenderPass b_pass(*b_pass_iter);
+		PassType pass_type = get_pass_type(b_pass);
+
+		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
+			continue;
+		if(pass_type != PASS_NONE)
+			Pass::add(pass_type, passes);
+	}
+
+	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+	if(get_boolean(crp, "denoising_store_passes") &&
+	   get_boolean(crp, "use_denoising") &&
+	   !session_params.progressive_refine) {
+		b_engine.add_pass("Denoising Normal",          3, "XYZ", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Normal Variance", 3, "XYZ", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Albedo",          3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Albedo Variance", 3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Depth",           1, "Z",   b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Depth Variance",  1, "Z",   b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Shadow A",        3, "XYV", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Shadow B",        3, "XYV", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Image",           3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Image Variance",  3, "RGB", b_srlay.name().c_str());
+	}
+#ifdef __KERNEL_DEBUG__
+	if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
+		b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
+	}
+	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
+		b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
+	}
+	if(get_boolean(crp, "pass_debug_bvh_intersections")) {
+		b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_INTERSECTIONS, passes);
+	}
+	if(get_boolean(crp, "pass_debug_ray_bounces")) {
+		b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_RAY_BOUNCES, passes);
+	}
+#endif
+
+    /* make Crypto passes appear before user defined AOVs
+     * that way, their indices are known */
+    
+    int crypto_depth = std::min(16, get_int(crp, "pass_crypto_depth")) / 2;
+    scene->film->use_cryptomatte = crypto_depth;
+    
+    if(get_boolean(crp, "use_pass_crypto_object")) {
+        for(int i = 0; i < crypto_depth; ++i) {
+            string passname = string_printf("uCryptoObject%02d", i);
+            AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
+            passes.add(aov);
+            passname = "AOV " + passname;
+            b_engine.add_pass(passname.c_str(), 4, "RGBA", b_srlay.name().c_str());
+        }
+        scene->film->use_cryptomatte |= CRYPT_OBJECT;
+    }
+    
+    if(get_boolean(crp, "use_pass_crypto_material")) {
+        for(int i = 0; i < crypto_depth; ++i) {
+            string passname = string_printf("uCryptoMaterial%02d", i);
+            AOV aov = {ustring(passname), 9999, AOV_CRYPTOMATTE};
+            passes.add(aov);
+            passname = "AOV " + passname;
+            b_engine.add_pass(passname.c_str(), 4, "RGBA", b_srlay.name().c_str());
+        }
+        scene->film->use_cryptomatte |= CRYPT_MATERIAL;
+    }
+
+    if(get_boolean(crp, "pass_crypto_accurate")) {
+        scene->film->use_cryptomatte |= CRYPT_ACCURATE;
+    }
+    
+    RNA_BEGIN(&crp, b_aov, "aovs") {
+        bool is_color = RNA_enum_get(&b_aov, "type");
+        string name = get_string(b_aov, "name");
+        AOV aov = {ustring(name), 9999, is_color ? AOV_RGB : AOV_FLOAT};
+        passes.add(aov);
+        string passname = string_printf("AOV %s", name.c_str());
+        b_engine.add_pass(passname.c_str(), is_color? 3: 1, is_color? "RGB": "X", b_srlay.name().c_str());
+    } RNA_END
+		
 	scene->film->pass_alpha_threshold = b_srlay.pass_alpha_threshold();
 	scene->film->tag_passes_update(scene, passes);
 	scene->film->tag_update(scene);

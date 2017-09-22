@@ -54,11 +54,19 @@ public:
 	int aov_color_passes;
 	int aov_value_passes;
 
+	bool denoising_data_pass;
+	/* If only some light path types should be denoised, an additional pass is needed. */
+	bool denoising_clean_pass;
+
 	/* functions */
 	BufferParams();
 
 	void get_offset_stride(int& offset, int& stride);
 	bool modified(const BufferParams& params);
+
+	void add_pass(PassType type);
+//	int get_passes_size();
+//	int get_denoising_offset();
 };
 
 /* Render Buffers */
@@ -73,19 +81,20 @@ public:
 	/* random number generator state */
 	device_vector<uint> rng_state;
 
+	Device *device;
+
 	explicit RenderBuffers(Device *device);
 	~RenderBuffers();
 
 	void reset(Device *device, BufferParams& params);
 
-	bool copy_from_device();
+	bool copy_from_device(Device *from_device = NULL);
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 	bool get_aov_rect(ustring name, float exposure, int sample, int components, float *pixels);
+	bool get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels);
 
 protected:
 	void device_free();
-
-	Device *device;
 };
 
 /* Display Buffer
@@ -132,6 +141,9 @@ protected:
 
 class RenderTile {
 public:
+	typedef enum { PATH_TRACE, DENOISE } Task;
+
+	Task task;
 	int x, y, w, h;
 	int start_sample;
 	int num_samples;
@@ -139,6 +151,7 @@ public:
 	int resolution;
 	int offset;
 	int stride;
+	int tile_index;
 
 	device_ptr buffer;
 	device_ptr rng_state;

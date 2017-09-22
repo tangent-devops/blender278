@@ -98,7 +98,7 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 		
 		/* smooth normal */
 		if(sd->shader & SHADER_SMOOTH_NORMAL)
-			sd->N = triangle_smooth_normal(kg, sd->prim, sd->u, sd->v);
+			sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
 
 #ifdef __DPDU__
 		/* dPdu/dPdv */
@@ -193,7 +193,7 @@ void shader_setup_from_subsurface(
 		sd->N = Ng;
 
 		if(sd->shader & SHADER_SMOOTH_NORMAL)
-			sd->N = triangle_smooth_normal(kg, sd->prim, sd->u, sd->v);
+			sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
 
 #  ifdef __DPDU__
 		/* dPdu/dPdv */
@@ -325,7 +325,7 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
 	if(sd->type & PRIMITIVE_TRIANGLE) {
 		/* smooth normal */
 		if(sd->shader & SHADER_SMOOTH_NORMAL) {
-			sd->N = triangle_smooth_normal(kg, sd->prim, sd->u, sd->v);
+			sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
 
 #ifdef __INSTANCING__
 			if(!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
