@@ -944,7 +944,7 @@ public:
 #define CUDA_GET_BLOCKSIZE(func, w, h)                                                                          \
 			int threads_per_block;                                                                              \
 			cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, func)); \
-			int threads = (int)sqrt((float)threads_per_block);                                                  \
+			int threads = (int)sqrtf((float)threads_per_block);                                                  \
 			int xblocks = ((w) + threads - 1)/threads;                                                          \
 			int yblocks = ((h) + threads - 1)/threads;
 
@@ -1357,8 +1357,8 @@ public:
 		printf("threads_per_block %d\n", threads_per_block);
 		printf("num_registers %d\n", num_registers);*/
 
-		int xthreads = (int)sqrt(threads_per_block);
-		int ythreads = (int)sqrt(threads_per_block);
+		int xthreads = (int)::sqrt(threads_per_block);
+		int ythreads = (int)::sqrt(threads_per_block);
 		int xblocks = (rtile.w + xthreads - 1)/xthreads;
 		int yblocks = (rtile.h + ythreads - 1)/ythreads;
 
@@ -1411,8 +1411,8 @@ public:
 		int threads_per_block;
 		cuda_assert(cuFuncGetAttribute(&threads_per_block, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFilmConvert));
 
-		int xthreads = (int)sqrt(threads_per_block);
-		int ythreads = (int)sqrt(threads_per_block);
+		int xthreads = (int)::sqrt(threads_per_block);
+		int ythreads = (int)::sqrt(threads_per_block);
 		int xblocks = (task.w + xthreads - 1)/xthreads;
 		int yblocks = (task.h + ythreads - 1)/ythreads;
 
@@ -2071,7 +2071,7 @@ int2 CUDASplitKernel::split_kernel_global_size(device_memory& kg, device_memory&
 	        << string_human_readable_size(free) << ").";
 
 	size_t num_elements = max_elements_for_max_buffer_size(kg, data, free / 2);
-	size_t side = round_down((int)sqrt(num_elements), 32);
+	size_t side = round_down((int)::sqrt(num_elements), 32);
 	int2 global_size = make_int2(side, round_down(num_elements / side, 16));
 	VLOG(1) << "Global size: " << global_size << ".";
 	return global_size;

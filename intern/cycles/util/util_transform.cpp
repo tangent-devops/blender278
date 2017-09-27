@@ -162,7 +162,7 @@ float4 transform_to_quat(const Transform& tfm)
 	float4 qt;
 
 	if(trace > 0.0) {
-		double s = sqrt(trace + 1.0);
+		double s = ::sqrt(trace + 1.0);
 
 		qt.w = (float)(s/2.0);
 		s = 0.5/s;
@@ -182,7 +182,7 @@ float4 transform_to_quat(const Transform& tfm)
 		int j = (i + 1)%3;
 		int k = (j + 1)%3;
 
-		double s = sqrt((double)(tfm[i][i] - (tfm[j][j] + tfm[k][k])) + 1.0);
+		double s = ::sqrt((double)(tfm[i][i] - (tfm[j][j] + tfm[k][k])) + 1.0);
 
 		double q[3];
 		q[i] = s * 0.5;

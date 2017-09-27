@@ -563,7 +563,7 @@ void OpenCLDeviceBase::enqueue_kernel(cl_kernel kernel, size_t w, size_t h, size
 	}
 
 	/* Try to divide evenly over 2 dimensions. */
-	size_t sqrt_workgroup_size = max((size_t)sqrt((double)workgroup_size), 1);
+	size_t sqrt_workgroup_size = max((size_t)::sqrt((double)workgroup_size), 1);
 	size_t local_size[2] = {sqrt_workgroup_size, sqrt_workgroup_size};
 
 	/* Some implementations have max size 1 on 2nd dimension. */

@@ -106,8 +106,7 @@ const char *BKE_appdir_folder_default(void)
 static char *blender_version_decimal(const int ver)
 {
 	static char version_str[5];
-	BLI_assert(ver < 1000);
-	BLI_snprintf(version_str, sizeof(version_str), "%d.%02d", ver / 100, ver % 100);
+	sprintf(version_str, "%d.%02d", ver / 100, ver % 100);
 	return version_str;
 }
 
@@ -213,8 +212,8 @@ static bool get_path_local(
 	/* try EXECUTABLE_DIR/2.5x/folder_name - new default directory for local blender installed files */
 #ifdef __APPLE__
 	/* due new codesign situation in OSX > 10.9.5 we must move the blender_version dir with contents to Resources */
-	char osx_resourses[FILE_MAX];
-	BLI_snprintf(osx_resourses, sizeof(osx_resourses), "%s../Resources", bprogdir);
+	static char osx_resourses[FILE_MAX];
+	sprintf(osx_resourses, "%s../Resources", bprogdir);
 	/* Remove the '/../' added above. */
 	BLI_cleanup_path(NULL, osx_resourses);
 	return test_path(targetpath, targetpath_len, osx_resourses, blender_version_decimal(ver), relfolder);
