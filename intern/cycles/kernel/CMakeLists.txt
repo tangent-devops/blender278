@@ -10,7 +10,23 @@ set(INC_SYS
 
 set(SRC
 	kernels/cpu/kernel.cpp
+	kernels/cpu/kernel_sse2.cpp
+	kernels/cpu/kernel_sse3.cpp
+	kernels/cpu/kernel_sse41.cpp
+	kernels/cpu/kernel_avx.cpp
+	kernels/cpu/kernel_avx2.cpp
 	kernels/cpu/kernel_split.cpp
+	kernels/cpu/kernel_split_sse2.cpp
+	kernels/cpu/kernel_split_sse3.cpp
+	kernels/cpu/kernel_split_sse41.cpp
+	kernels/cpu/kernel_split_avx.cpp
+	kernels/cpu/kernel_split_avx2.cpp
+	kernels/cpu/filter.cpp
+	kernels/cpu/filter_sse2.cpp
+	kernels/cpu/filter_sse3.cpp
+	kernels/cpu/filter_sse41.cpp
+	kernels/cpu/filter_avx.cpp
+	kernels/cpu/filter_avx2.cpp
 	kernels/opencl/kernel.cl
 	kernels/opencl/kernel_state_buffer_size.cl
 	kernels/opencl/kernel_split.cl
@@ -189,6 +205,21 @@ set(SRC_GEOM_HEADERS
 	geom/geom_volume.h
 )
 
+set(SRC_FILTER_HEADERS
+	filter/filter.h
+	filter/filter_defines.h
+	filter/filter_features.h
+	filter/filter_features_sse.h
+	filter/filter_kernel.h
+	filter/filter_nlm_cpu.h
+	filter/filter_nlm_gpu.h
+	filter/filter_prefilter.h
+	filter/filter_reconstruction.h
+	filter/filter_transform.h
+	filter/filter_transform_gpu.h
+	filter/filter_transform_sse.h
+)
+
 set(SRC_UTIL_HEADERS
 	../util/util_atomic.h
 	../util/util_color.h
@@ -257,6 +288,12 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		${SRC_SVM_HEADERS}
 		${SRC_GEOM_HEADERS}
 		${SRC_CLOSURE_HEADERS}
+		${SRC_UTIL_HEADERS}
+	)
+	set(cuda_filter_sources kernels/cuda/filter.cu
+		${SRC_HEADERS}
+		${SRC_KERNELS_CUDA_HEADERS}
+		${SRC_FILTER_HEADERS}
 		${SRC_UTIL_HEADERS}
 	)
 	set(cuda_cubins)
@@ -352,6 +389,7 @@ include_directories(SYSTEM ${INC_SYS})
 
 set_source_files_properties(kernels/cpu/kernel.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_KERNEL_FLAGS}")
 set_source_files_properties(kernels/cpu/kernel_split.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_KERNEL_FLAGS}")
+set_source_files_properties(kernels/cpu/filter.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_KERNEL_FLAGS}")
 
 if(CXX_HAS_SSE)
 	list(APPEND SRC
@@ -369,6 +407,9 @@ if(CXX_HAS_SSE)
 	set_source_files_properties(kernels/cpu/kernel_split_sse2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE2_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_split_sse3.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE3_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_split_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/filter_sse2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE2_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/filter_sse3.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE3_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/filter_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
 endif()
 
 if(CXX_HAS_AVX)
@@ -378,6 +419,7 @@ if(CXX_HAS_AVX)
 	)
 	set_source_files_properties(kernels/cpu/kernel_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_split_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/filter_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
 endif()
 
 if(CXX_HAS_AVX2)
@@ -387,6 +429,7 @@ if(CXX_HAS_AVX2)
 	)
 	set_source_files_properties(kernels/cpu/kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_split_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/filter_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
 endif()
 
 add_library(cycles_kernel
@@ -396,6 +439,7 @@ add_library(cycles_kernel
 	${SRC_KERNELS_CUDA_HEADERS}
 	${SRC_BVH_HEADERS}
 	${SRC_CLOSURE_HEADERS}
+	${SRC_FILTER_HEADERS}
 	${SRC_SVM_HEADERS}
 	${SRC_GEOM_HEADERS}
 	${SRC_SPLIT_HEADERS}
@@ -440,6 +484,7 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_HEADERS}" ${CYCLES_INSTALL_PA
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNELS_CUDA_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/kernels/cuda)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_BVH_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/bvh)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_CLOSURE_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/closure)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_FILTER_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/filter)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/svm)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_GEOM_HEADERS}" ${CYCLES_INSTALL_PATH}/source/kernel/geom)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/source/util)

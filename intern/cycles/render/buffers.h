@@ -76,16 +76,16 @@ public:
 	explicit RenderBuffers(Device *device);
 	~RenderBuffers();
 
+	Device *device;
+
 	void reset(Device *device, BufferParams& params);
 
-	bool copy_from_device();
+	bool copy_from_device(Device *from_device = NULL);
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 	bool get_aov_rect(ustring name, float exposure, int sample, int components, float *pixels);
 
 protected:
 	void device_free();
-
-	Device *device;
 };
 
 /* Display Buffer
@@ -132,6 +132,9 @@ protected:
 
 class RenderTile {
 public:
+	typedef enum { PATH_TRACE, DENOISE } Task;
+
+	Task task;
 	int x, y, w, h;
 	int start_sample;
 	int num_samples;

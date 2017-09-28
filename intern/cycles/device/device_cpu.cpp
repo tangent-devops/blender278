@@ -25,6 +25,7 @@
 #endif
 
 #include "device/device.h"
+#include "device/device_denoising.h"
 #include "device/device_intern.h"
 #include "device/device_split_kernel.h"
 
@@ -33,6 +34,8 @@
 #include "kernel/kernel_types.h"
 #include "kernel/split/kernel_split_data.h"
 #include "kernel/kernel_globals.h"
+
+#include "kernel/filter/filter.h"
 
 #include "kernel/osl/osl_shader.h"
 #include "kernel/osl/osl_globals.h"
@@ -54,6 +57,83 @@
 CCL_NAMESPACE_BEGIN
 
 class CPUDevice;
+
+/* Has to be outside of the class to be shared across template instantiations. */
+static const char *logged_architecture = "";
+
+template<typename F>
+class KernelFunctions {
+public:
+	KernelFunctions()
+	{
+		kernel = (F)NULL;
+	}
+
+	KernelFunctions(F kernel_default,
+	                F kernel_sse2,
+	                F kernel_sse3,
+	                F kernel_sse41,
+	                F kernel_avx,
+	                F kernel_avx2)
+	{
+		const char *architecture_name = "default";
+		kernel = kernel_default;
+
+		/* Silence potential warnings about unused variables
+		 * when compiling without some architectures. */
+		(void)kernel_sse2;
+		(void)kernel_sse3;
+		(void)kernel_sse41;
+		(void)kernel_avx;
+		(void)kernel_avx2;
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+		if(system_cpu_support_avx2()) {
+			architecture_name = "AVX2";
+			kernel = kernel_avx2;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
+		if(system_cpu_support_avx()) {
+			architecture_name = "AVX";
+			kernel = kernel_avx;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
+		if(system_cpu_support_sse41()) {
+			architecture_name = "SSE4.1";
+			kernel = kernel_sse41;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+		if(system_cpu_support_sse3()) {
+			architecture_name = "SSE3";
+			kernel = kernel_sse3;
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
+		if(system_cpu_support_sse2()) {
+			architecture_name = "SSE2";
+			kernel = kernel_sse2;
+		}
+#endif
+
+		if(strstr(architecture_name, logged_architecture) != 0) {
+			VLOG(1) << "Will be using " << architecture_name << " kernels.";
+			logged_architecture = architecture_name;
+		}
+	}
+
+	inline F operator()() const {
+		assert(kernel);
+		return kernel;
+	}
+protected:
+	F kernel;
+};
 
 class CPUSplitKernel : public DeviceSplitKernel {
 	CPUDevice *device;
@@ -152,8 +232,60 @@ public:
 
 	DeviceRequestedFeatures requested_features;
 	
+	KernelFunctions<void(*)(KernelGlobals *, float *, unsigned int *, int, int, int, int, int)>   path_trace_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_half_float_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int)>       convert_to_byte_kernel;
+	KernelFunctions<void(*)(KernelGlobals *, uint4 *, float4 *, float*, int, int, int, int, int)> shader_kernel;
+
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, float*, float*, float*, float*, float*, int*, int, int, bool)> filter_divide_shadow_kernel;
+	KernelFunctions<void(*)(int, TilesInfo*, int, int, int, int, float*, float*, int*, int, int, bool)>               filter_get_feature_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_detect_outliers_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int)>                                     filter_combine_halves_kernel;
+
+	KernelFunctions<void(*)(int, int, float*, float*, float*, int*, int, int, float, float)> filter_nlm_calc_difference_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_blur_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int, int)>                                 filter_nlm_calc_weight_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, int*, int, int)>       filter_nlm_update_output_kernel;
+	KernelFunctions<void(*)(float*, float*, int*, int)>                                      filter_nlm_normalize_kernel;
+
+	KernelFunctions<void(*)(float*, int, int, int, float*, int*, int*, int, int, float)>                                              filter_construct_transform_kernel;
+	KernelFunctions<void(*)(int, int, float*, float*, float*, float*, float*, int*, float*, float3*, int*, int*, int, int, int, int)> filter_nlm_construct_gramian_kernel;
+	KernelFunctions<void(*)(int, int, int, int, int, float*, int*, float*, float3*, int*, int)>                                       filter_finalize_kernel;
+
+	KernelFunctions<void(*)(KernelGlobals *, ccl_constant KernelData*, ccl_global void*, int, ccl_global char*,
+	                       ccl_global uint*, int, int, int, int, int, int, int, int, ccl_global int*, int,
+	                       ccl_global char*, ccl_global unsigned int*, unsigned int, ccl_global float*)>        data_init_kernel;
+	unordered_map<string, KernelFunctions<void(*)(KernelGlobals*, KernelData*)> > split_kernels;
+
+#define KERNEL_FUNCTIONS(name) \
+	      KERNEL_NAME_EVAL(cpu, name), \
+	      KERNEL_NAME_EVAL(cpu_sse2, name), \
+	      KERNEL_NAME_EVAL(cpu_sse3, name), \
+	      KERNEL_NAME_EVAL(cpu_sse41, name), \
+	      KERNEL_NAME_EVAL(cpu_avx, name), \
+	      KERNEL_NAME_EVAL(cpu_avx2, name)
+
 	CPUDevice(DeviceInfo& info, Stats &stats, bool background)
-	: Device(info, stats, background)
+	: Device(info, stats, background),
+#define REGISTER_KERNEL(name) name ## _kernel(KERNEL_FUNCTIONS(name))
+	  REGISTER_KERNEL(path_trace),
+	  REGISTER_KERNEL(convert_to_half_float),
+	  REGISTER_KERNEL(convert_to_byte),
+	  REGISTER_KERNEL(shader),
+	  REGISTER_KERNEL(filter_divide_shadow),
+	  REGISTER_KERNEL(filter_get_feature),
+	  REGISTER_KERNEL(filter_detect_outliers),
+	  REGISTER_KERNEL(filter_combine_halves),
+	  REGISTER_KERNEL(filter_nlm_calc_difference),
+	  REGISTER_KERNEL(filter_nlm_blur),
+	  REGISTER_KERNEL(filter_nlm_calc_weight),
+	  REGISTER_KERNEL(filter_nlm_update_output),
+	  REGISTER_KERNEL(filter_nlm_normalize),
+	  REGISTER_KERNEL(filter_construct_transform),
+	  REGISTER_KERNEL(filter_nlm_construct_gramian),
+	  REGISTER_KERNEL(filter_finalize),
+	  REGISTER_KERNEL(data_init)
+#undef REGISTER_KERNEL
 	{
 
 #ifdef WITH_OSL
@@ -350,6 +482,272 @@ public:
 			run = function_bind(&CPUDevice::thread_run, device, this);
 		}
 	};
+	
+	bool denoising_set_tiles(device_ptr *buffers, DenoisingTask *task)
+	{
+		mem_alloc("Denoising Tile Info", task->tiles_mem, MEM_READ_ONLY);
+
+		TilesInfo *tiles = (TilesInfo*) task->tiles_mem.data_pointer;
+		for(int i = 0; i < 9; i++) {
+			tiles->buffers[i] = buffers[i];
+		}
+
+		return true;
+	}
+
+	bool denoising_non_local_means(device_ptr image_ptr, device_ptr guide_ptr, device_ptr variance_ptr, device_ptr out_ptr,
+	                               DenoisingTask *task)
+	{
+		int4 rect = task->rect;
+		int   r   = task->nlm_state.r;
+		int   f   = task->nlm_state.f;
+		float a   = task->nlm_state.a;
+		float k_2 = task->nlm_state.k_2;
+
+		int w = align_up(rect.z-rect.x, 4);
+		int h = rect.w-rect.y;
+
+		float *blurDifference = (float*) task->nlm_state.temporary_1_ptr;
+		float *difference     = (float*) task->nlm_state.temporary_2_ptr;
+		float *weightAccum    = (float*) task->nlm_state.temporary_3_ptr;
+
+		memset(weightAccum, 0, sizeof(float)*w*h);
+		memset((float*) out_ptr, 0, sizeof(float)*w*h);
+
+		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
+			int dy = i / (2*r+1) - r;
+			int dx = i % (2*r+1) - r;
+
+			int local_rect[4] = {max(0, -dx), max(0, -dy), rect.z-rect.x - max(0, dx), rect.w-rect.y - max(0, dy)};
+			filter_nlm_calc_difference_kernel()(dx, dy,
+			                                    (float*) guide_ptr,
+			                                    (float*) variance_ptr,
+			                                    difference,
+			                                    local_rect,
+			                                    w, 0,
+			                                    a, k_2);
+
+			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
+			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, w, f);
+			filter_nlm_blur_kernel()       (difference, blurDifference, local_rect, w, f);
+
+			filter_nlm_update_output_kernel()(dx, dy,
+			                                  blurDifference,
+			                                  (float*) image_ptr,
+			                                  (float*) out_ptr,
+			                                  weightAccum,
+			                                  local_rect,
+			                                  w, f);
+		}
+
+		int local_rect[4] = {0, 0, rect.z-rect.x, rect.w-rect.y};
+		filter_nlm_normalize_kernel()((float*) out_ptr, weightAccum, local_rect, w);
+
+		return true;
+	}
+
+	bool denoising_construct_transform(DenoisingTask *task)
+	{
+		for(int y = 0; y < task->filter_area.w; y++) {
+			for(int x = 0; x < task->filter_area.z; x++) {
+				filter_construct_transform_kernel()((float*) task->buffer.mem.device_pointer,
+				                                    x + task->filter_area.x,
+				                                    y + task->filter_area.y,
+				                                    y*task->filter_area.z + x,
+				                                    (float*) task->storage.transform.device_pointer,
+				                                    (int*)   task->storage.rank.device_pointer,
+				                                    &task->rect.x,
+				                                    task->buffer.pass_stride,
+				                                    task->radius,
+				                                    task->pca_threshold);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_reconstruct(device_ptr color_ptr,
+	                           device_ptr color_variance_ptr,
+	                           device_ptr guide_ptr,
+	                           device_ptr guide_variance_ptr,
+	                           device_ptr output_ptr,
+	                           DenoisingTask *task)
+	{
+		mem_zero(task->storage.XtWX);
+		mem_zero(task->storage.XtWY);
+
+		float *difference     = (float*) task->reconstruction_state.temporary_1_ptr;
+		float *blurDifference = (float*) task->reconstruction_state.temporary_2_ptr;
+
+		int r = task->radius;
+		for(int i = 0; i < (2*r+1)*(2*r+1); i++) {
+			int dy = i / (2*r+1) - r;
+			int dx = i % (2*r+1) - r;
+
+			int local_rect[4] = {max(0, -dx), max(0, -dy),
+			                     task->reconstruction_state.source_w - max(0, dx),
+			                     task->reconstruction_state.source_h - max(0, dy)};
+			filter_nlm_calc_difference_kernel()(dx, dy,
+			                                    (float*) guide_ptr,
+			                                    (float*) guide_variance_ptr,
+			                                    difference,
+			                                    local_rect,
+			                                    task->buffer.w,
+			                                    task->buffer.pass_stride,
+			                                    1.0f,
+			                                    task->nlm_k_2);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.w, 4);
+			filter_nlm_calc_weight_kernel()(blurDifference, difference, local_rect, task->buffer.w, 4);
+			filter_nlm_blur_kernel()(difference, blurDifference, local_rect, task->buffer.w, 4);
+			filter_nlm_construct_gramian_kernel()(dx, dy,
+			                                      blurDifference,
+			                                      (float*)  task->buffer.mem.device_pointer,
+			                                      (float*)  color_ptr,
+			                                      (float*)  color_variance_ptr,
+			                                      (float*)  task->storage.transform.device_pointer,
+			                                      (int*)    task->storage.rank.device_pointer,
+			                                      (float*)  task->storage.XtWX.device_pointer,
+			                                      (float3*) task->storage.XtWY.device_pointer,
+			                                      local_rect,
+			                                      &task->reconstruction_state.filter_rect.x,
+			                                      task->buffer.w,
+			                                      task->buffer.h,
+			                                      4,
+			                                      task->buffer.pass_stride);
+		}
+		for(int y = 0; y < task->filter_area.w; y++) {
+			for(int x = 0; x < task->filter_area.z; x++) {
+				filter_finalize_kernel()(x,
+				                         y,
+				                         y*task->filter_area.z + x,
+				                         task->buffer.w,
+				                         task->buffer.h,
+				                         (float*)  output_ptr,
+				                         (int*)    task->storage.rank.device_pointer,
+				                         (float*)  task->storage.XtWX.device_pointer,
+				                         (float3*) task->storage.XtWY.device_pointer,
+				                         &task->reconstruction_state.buffer_params.x,
+				                         task->render_buffer.samples);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_combine_halves(device_ptr a_ptr, device_ptr b_ptr,
+	                              device_ptr mean_ptr, device_ptr variance_ptr,
+	                              int r, int4 rect, DenoisingTask * /*task*/)
+	{
+		for(int y = rect.y; y < rect.w; y++) {
+			for(int x = rect.x; x < rect.z; x++) {
+				filter_combine_halves_kernel()(x, y,
+				                               (float*) mean_ptr,
+				                               (float*) variance_ptr,
+				                               (float*) a_ptr,
+				                               (float*) b_ptr,
+				                               &rect.x,
+				                               r);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_divide_shadow(device_ptr a_ptr, device_ptr b_ptr,
+	                             device_ptr sample_variance_ptr, device_ptr sv_variance_ptr,
+	                             device_ptr buffer_variance_ptr, DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_divide_shadow_kernel()(task->render_buffer.samples,
+				                              task->tiles,
+				                              x, y,
+				                              (float*) a_ptr,
+				                              (float*) b_ptr,
+				                              (float*) sample_variance_ptr,
+				                              (float*) sv_variance_ptr,
+				                              (float*) buffer_variance_ptr,
+				                              &task->rect.x,
+				                              task->render_buffer.pass_stride,
+				                              task->render_buffer.denoising_data_offset,
+				                              use_split_kernel);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_get_feature(int mean_offset,
+	                           int variance_offset,
+	                           device_ptr mean_ptr,
+	                           device_ptr variance_ptr,
+	                           DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_get_feature_kernel()(task->render_buffer.samples,
+				                            task->tiles,
+				                            mean_offset,
+				                            variance_offset,
+				                            x, y,
+				                            (float*) mean_ptr,
+				                            (float*) variance_ptr,
+				                            &task->rect.x,
+				                            task->render_buffer.pass_stride,
+				                            task->render_buffer.denoising_data_offset,
+				                            use_split_kernel);
+			}
+		}
+		return true;
+	}
+
+	bool denoising_detect_outliers(device_ptr image_ptr,
+	                               device_ptr variance_ptr,
+	                               device_ptr depth_ptr,
+	                               device_ptr output_ptr,
+	                               DenoisingTask *task)
+	{
+		for(int y = task->rect.y; y < task->rect.w; y++) {
+			for(int x = task->rect.x; x < task->rect.z; x++) {
+				filter_detect_outliers_kernel()(x, y,
+				                                (float*) image_ptr,
+				                                (float*) variance_ptr,
+				                                (float*) depth_ptr,
+				                                (float*) output_ptr,
+				                                &task->rect.x,
+				                                task->buffer.pass_stride);
+			}
+		}
+		return true;
+	}
+
+	void denoise(DeviceTask &task, RenderTile &tile)
+	{
+		tile.sample = tile.start_sample + tile.num_samples;
+
+		DenoisingTask denoising(this);
+
+		denoising.functions.construct_transform = function_bind(&CPUDevice::denoising_construct_transform, this, &denoising);
+		denoising.functions.reconstruct = function_bind(&CPUDevice::denoising_reconstruct, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.divide_shadow = function_bind(&CPUDevice::denoising_divide_shadow, this, _1, _2, _3, _4, _5, &denoising);
+		denoising.functions.non_local_means = function_bind(&CPUDevice::denoising_non_local_means, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.combine_halves = function_bind(&CPUDevice::denoising_combine_halves, this, _1, _2, _3, _4, _5, _6, &denoising);
+		denoising.functions.get_feature = function_bind(&CPUDevice::denoising_get_feature, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.detect_outliers = function_bind(&CPUDevice::denoising_detect_outliers, this, _1, _2, _3, _4, &denoising);
+		denoising.functions.set_tiles = function_bind(&CPUDevice::denoising_set_tiles, this, _1, &denoising);
+
+		denoising.filter_area = make_int4(tile.x, tile.y, tile.w, tile.h);
+		denoising.render_buffer.samples = tile.sample;
+
+		RenderTile rtiles[9];
+		rtiles[4] = tile;
+		task.map_neighbor_tiles(rtiles, this);
+		denoising.tiles_from_rendertiles(rtiles);
+
+		denoising.init_from_devicetask(task);
+
+		denoising.run_denoising();
+
+		task.unmap_neighbor_tiles(rtiles, this);
+
+		task.update_progress(&tile, tile.w*tile.h);
+	}
 
 	void thread_path_trace(DeviceTask& task)
 	{
@@ -404,57 +802,62 @@ public:
 		kg.coverage_object = kg.coverage_material = NULL;
 
 		while(task.acquire_tile(this, tile)) {
-			if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
-				if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
-					coverage_object.clear();
-					coverage_object.resize(tile.w * tile.h);
-				}
-				if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
-					coverage_material.clear();
-					coverage_material.resize(tile.w * tile.h);
-				}
+			if(tile.task == RenderTile::PATH_TRACE) {
+                if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
+                    if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
+                        coverage_object.clear();
+                        coverage_object.resize(tile.w * tile.h);
+                    }
+                    if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
+                        coverage_material.clear();
+                        coverage_material.resize(tile.w * tile.h);
+                    }
+                }
+                float *render_buffer = (float*)tile.buffer;
+                uint *rng_state = (uint*)tile.rng_state;
+                int start_sample = tile.start_sample;
+                int end_sample = tile.start_sample + tile.num_samples;
+
+                for(int sample = start_sample; sample < end_sample; sample++) {
+                    if(task.get_cancel() || task_pool.canceled()) {
+                        if(task.need_finish_queue == false)
+                            break;
+                    }
+
+                    for(int y = tile.y; y < tile.y + tile.h; y++) {
+                        for(int x = tile.x; x < tile.x + tile.w; x++) {
+                            if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
+                                if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
+                                    kg.coverage_object = &coverage_object[tile.w * (y - tile.y) + x - tile.x];
+                                }
+                                if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
+                                    kg.coverage_material = &coverage_material[tile.w * (y - tile.y) + x - tile.x];
+                                }
+                            }
+                            path_trace_kernel(&kg, render_buffer, rng_state,
+                                              sample, x, y, tile.offset, tile.stride);
+                        }
+                    }
+
+                    tile.sample = sample + 1;
+
+                    if(tile.sample == end_sample) {
+                        int aov_index = 0;
+                        if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
+                            if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
+                                aov_index += flatten_coverage(&kg, coverage_object, tile, aov_index);
+                            }
+                            if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
+                                aov_index += flatten_coverage(&kg, coverage_material, tile, aov_index);
+                            }
+                        }
+                    }
+
+                    task.update_progress(&tile, tile.w*tile.h);
+                }
 			}
-			float *render_buffer = (float*)tile.buffer;
-			uint *rng_state = (uint*)tile.rng_state;
-			int start_sample = tile.start_sample;
-			int end_sample = tile.start_sample + tile.num_samples;
-
-			for(int sample = start_sample; sample < end_sample; sample++) {
-				if(task.get_cancel() || task_pool.canceled()) {
-					if(task.need_finish_queue == false)
-						break;
-				}
-
-				for(int y = tile.y; y < tile.y + tile.h; y++) {
-					for(int x = tile.x; x < tile.x + tile.w; x++) {
-						if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
-							if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
-								kg.coverage_object = &coverage_object[tile.w * (y - tile.y) + x - tile.x];
-							}
-							if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
-								kg.coverage_material = &coverage_material[tile.w * (y - tile.y) + x - tile.x];
-							}
-						}
-						path_trace_kernel(&kg, render_buffer, rng_state,
-						                  sample, x, y, tile.offset, tile.stride);
-					}
-				}
-
-				tile.sample = sample + 1;
-
-				if(tile.sample == end_sample) {
-					int aov_index = 0;
-					if(kg.__data.film.use_cryptomatte & CRYPT_ACCURATE) {
-						if(kg.__data.film.use_cryptomatte & CRYPT_OBJECT) {
-							aov_index += flatten_coverage(&kg, coverage_object, tile, aov_index);
-						}
-						if(kg.__data.film.use_cryptomatte & CRYPT_MATERIAL) {
-							aov_index += flatten_coverage(&kg, coverage_material, tile, aov_index);
-						}
-					}
-				}
-
-				task.update_progress(&tile, tile.w*tile.h);
+			else if(tile.task == RenderTile::DENOISE) {
+				denoise(task, tile);
 			}
 
 			task.release_tile(tile);

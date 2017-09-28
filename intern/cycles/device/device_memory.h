@@ -35,6 +35,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Device;
+
 enum MemoryType {
 	MEM_READ_ONLY,
 	MEM_WRITE_ONLY,
@@ -213,6 +215,22 @@ protected:
 	device_memory& operator = (const device_memory&);
 };
 
+template<typename T>
+class device_only_memory : public device_memory
+{
+public:
+	device_only_memory()
+	{
+		data_type = device_type_traits<T>::data_type;
+		data_elements = max(device_type_traits<T>::num_elements, 1);
+	}
+
+	void resize(size_t num)
+	{
+		device_memory::resize(num*sizeof(T));
+	}
+};
+
 /* Device Vector */
 
 template<typename T> class device_vector : public device_memory
@@ -297,6 +315,27 @@ public:
 
 private:
 	array<T> data;
+};
+
+/* A device_sub_ptr is a pointer into another existing memory.
+ * Therefore, it is not allocated separately, but just created from the already allocated base memory.
+ * It is freed automatically when it goes out of scope, which should happen before the base memory is freed.
+ * Note that some devices require the offset and size of the sub_ptr to be properly aligned. */
+class device_sub_ptr
+{
+public:
+	device_sub_ptr(Device *device, device_memory& mem, int offset, int size, MemoryType type);
+	~device_sub_ptr();
+	/* No copying. */
+	device_sub_ptr& operator = (const device_sub_ptr&);
+
+	device_ptr operator*() const
+	{
+		return ptr;
+	}
+protected:
+	Device *device;
+	device_ptr ptr;
 };
 
 CCL_NAMESPACE_END
