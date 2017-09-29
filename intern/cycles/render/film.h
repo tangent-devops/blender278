@@ -87,12 +87,16 @@ public:
 	bool modified(const PassSettings& other) const;
 
 	int get_size() const;
+	int get_denoising_offset() const;
 	Pass* get_pass(PassType type, int &offset);
 	AOV* get_aov(ustring name, int &offset);
 
 	bool contains(PassType type) const;
 	void add(PassType type);
 	void add(AOV aov);
+
+	bool denoising_data_pass;
+	bool denoising_clean_pass;
 
 protected:
 	array<Pass> passes;
@@ -108,6 +112,10 @@ public:
 	float exposure;
 	PassSettings passes;
 	float pass_alpha_threshold;
+
+	int pass_stride;
+	int denoising_data_offset;
+	int denoising_clean_offset;
 
 	FilterType filter_type;
 	float filter_width;

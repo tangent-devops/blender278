@@ -42,6 +42,8 @@ static bool compare_pass_order(const Pass& a, const Pass& b)
 PassSettings::PassSettings()
 {
 	add(PASS_COMBINED);
+	denoising_data_pass = false;
+	denoising_clean_pass = false;
 }
 
 void PassSettings::add(AOV aov)
@@ -227,7 +229,7 @@ bool PassSettings::modified(const PassSettings& other) const
 	return false;
 }
 
-int PassSettings::get_size() const
+int PassSettings::get_denoising_offset() const
 {
 	int size = 0;
 
@@ -239,6 +241,19 @@ int PassSettings::get_size() const
 
 	for(size_t i = 0; i < aovs.size(); i++) {
 		size += aovs[i].type != AOV_FLOAT ? 4 : 1;
+	}
+
+	return size;
+}
+
+
+int PassSettings::get_size() const
+{
+	int size = get_denoising_offset();
+
+	if(denoising_data_pass) {
+		size += DENOISING_PASS_SIZE_BASE;
+		if(denoising_clean_pass) size += DENOISING_PASS_SIZE_CLEAN;
 	}
 
 	return align_up(size, 4);

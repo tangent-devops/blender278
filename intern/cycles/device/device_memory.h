@@ -175,6 +175,9 @@ class device_memory
 {
 public:
 	size_t memory_size() { return data_size*data_elements*datatype_size(data_type); }
+	size_t memory_elements_size(int elements) {
+		return elements*data_elements*datatype_size(data_type);
+	}
 
 	/* data information */
 	DataType data_type;

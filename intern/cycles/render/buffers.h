@@ -83,6 +83,7 @@ public:
 	bool copy_from_device(Device *from_device = NULL);
 	bool get_pass_rect(PassType type, float exposure, int sample, int components, float *pixels);
 	bool get_aov_rect(ustring name, float exposure, int sample, int components, float *pixels);
+	bool get_denoising_pass_rect(int offset, float exposure, int sample, int components, float *pixels);
 
 protected:
 	void device_free();
@@ -142,6 +143,7 @@ public:
 	int resolution;
 	int offset;
 	int stride;
+	int tile_index;
 
 	device_ptr buffer;
 	device_ptr rng_state;

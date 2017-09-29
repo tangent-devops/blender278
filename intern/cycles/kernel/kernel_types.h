@@ -395,6 +395,22 @@ typedef enum CryptomatteType {
 	CRYPT_ACCURATE = (1 << 29),
 } CryptomatteType;
 
+typedef enum DenoisingPassOffsets {
+	DENOISING_PASS_NORMAL             = 0,
+	DENOISING_PASS_NORMAL_VAR         = 3,
+	DENOISING_PASS_ALBEDO             = 6,
+	DENOISING_PASS_ALBEDO_VAR         = 9,
+	DENOISING_PASS_DEPTH              = 12,
+	DENOISING_PASS_DEPTH_VAR          = 13,
+	DENOISING_PASS_SHADOW_A           = 14,
+	DENOISING_PASS_SHADOW_B           = 17,
+	DENOISING_PASS_COLOR              = 20,
+	DENOISING_PASS_COLOR_VAR          = 23,
+
+	DENOISING_PASS_SIZE_BASE          = 26,
+	DENOISING_PASS_SIZE_CLEAN         = 3,
+} DenoisingPassOffsets;
+
 typedef enum BakePassFilter {
 	BAKE_FILTER_NONE = 0,
 	BAKE_FILTER_DIRECT = (1 << 0),

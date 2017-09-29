@@ -414,6 +414,11 @@ public:
 		}
 	}
 
+	virtual device_ptr mem_alloc_sub_ptr(device_memory& mem, int offset, int /*size*/, MemoryType /*type*/)
+	{
+		return (device_ptr) (((char*) mem.device_pointer) + mem.memory_elements_size(offset));
+	}
+
 	void const_copy_to(const char *name, void *host, size_t size)
 	{
 		kernel_const_copy(&kernel_globals, name, host, size);

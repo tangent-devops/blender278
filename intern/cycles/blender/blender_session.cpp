@@ -400,6 +400,16 @@ void BlenderSession::render()
 		sync->sync_film(b_rlay, *b_layer_iter, session_params.device.advanced_shading);
 
 		buffer_params.passes = scene->film->passes;
+        
+		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
+		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
+		session->tile_manager.schedule_denoising = use_denoising;
+		session->params.use_denoising = use_denoising;
+		session->params.denoising_radius = get_int(crl, "denoising_radius");
+		session->params.denoising_strength = get_float(crl, "denoising_strength");
+		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
+		session->params.denoising_relative_pca = get_boolean(crl, "denoising_relative_pca");
+
 		scene->integrator->tag_update(scene);
 
 		int view_index = 0;
@@ -658,6 +668,12 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			}
 			else if(b_pass.name().substr(0, 4) == "AOV ") {
 				read = buffers->get_aov_rect(ustring(b_pass.name().substr(4)), exposure, sample, components, &pixels[0]);
+			}
+			else {
+				int denoising_offset = BlenderSync::get_denoising_pass(b_pass);
+				if(denoising_offset >= 0) {
+					read = buffers->get_denoising_pass_rect(denoising_offset, exposure, sample, components, &pixels[0]);
+				}
 			}
 			if(!read) {
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));

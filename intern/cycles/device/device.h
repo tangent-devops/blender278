@@ -316,6 +316,8 @@ public:
 	/* multi device */
 	virtual void map_tile(Device * /*sub_device*/, RenderTile& /*tile*/) {}
 	virtual int device_number(Device * /*sub_device*/) { return 0; }
+	virtual void map_neighbor_tiles(Device * /*sub_device*/, RenderTile * /*tiles*/) {}
+	virtual void unmap_neighbor_tiles(Device * /*sub_device*/, RenderTile * /*tiles*/) {}
 
 	/* static */
 	static Device *create(DeviceInfo& info, Stats &stats, bool background = true);

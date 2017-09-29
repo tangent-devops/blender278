@@ -553,6 +553,30 @@ PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
 	return PASS_NONE;
 }
 
+int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
+{
+	string name = b_pass.name();
+	if(name.substr(0, 10) != "Denoising ") {
+		return -1;
+	}
+	name = name.substr(10);
+
+#define MAP_PASS(passname, offset) if(name == passname) return offset;
+	MAP_PASS("Normal", DENOISING_PASS_NORMAL);
+	MAP_PASS("Normal Variance", DENOISING_PASS_NORMAL_VAR);
+	MAP_PASS("Albedo", DENOISING_PASS_ALBEDO);
+	MAP_PASS("Albedo Variance", DENOISING_PASS_ALBEDO_VAR);
+	MAP_PASS("Depth", DENOISING_PASS_DEPTH);
+	MAP_PASS("Depth Variance", DENOISING_PASS_DEPTH_VAR);
+	MAP_PASS("Shadow A", DENOISING_PASS_SHADOW_A);
+	MAP_PASS("Shadow B", DENOISING_PASS_SHADOW_B);
+	MAP_PASS("Image", DENOISING_PASS_COLOR);
+	MAP_PASS("Image Variance", DENOISING_PASS_COLOR_VAR);
+#undef MAP_PASS
+
+	return -1;
+}
+
 void BlenderSync::sync_film(BL::RenderLayer& b_rlay,
 	                        BL::SceneRenderLayer& b_srlay,
 	                        bool advanced_shading)
