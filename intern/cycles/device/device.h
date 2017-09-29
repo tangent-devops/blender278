@@ -267,6 +267,8 @@ public:
 	virtual void mem_zero(device_memory& mem) = 0;
 	virtual void mem_free(device_memory& mem) = 0;
 
+	virtual int mem_address_alignment() { return 16; }
+
 	/* constant memory */
 	virtual void const_copy_to(const char *name, void *host, size_t size) = 0;
 

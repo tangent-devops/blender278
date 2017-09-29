@@ -53,6 +53,7 @@
 
 /* SSE2 is always available on x86-64 CPUs, so auto enable */
 #  define __KERNEL_SSE2__
+#  define WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 
 /* no SSE2 kernel on x86-64, part of regular kernel */
 #  ifdef WITH_KERNEL_SSE3
