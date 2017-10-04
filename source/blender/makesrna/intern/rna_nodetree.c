@@ -3366,7 +3366,7 @@ static void def_frame(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "label_size", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "label_size");
-	RNA_def_property_range(prop, 8, 64);
+	RNA_def_property_range(prop, 8, 512);
 	RNA_def_property_ui_text(prop, "Label Font Size", "Font size to use for displaying the label");
 	RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, NULL);
 }
