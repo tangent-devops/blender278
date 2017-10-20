@@ -397,19 +397,35 @@ void BlenderSession::render()
 
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
-		sync->sync_film(b_rlay, *b_layer_iter, session_params.device.advanced_shading);
-
-		buffer_params.passes = scene->film->passes;
+		/* add passes */
+		PassSettings PS;
+		PS.passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
+		buffer_params.PS = scene->film->PS;
         
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
+		buffer_params.denoising_data_pass = use_denoising;
 		session->tile_manager.schedule_denoising = use_denoising;
 		session->params.use_denoising = use_denoising;
+		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
+		scene->film->denoising_flags = 0;
+		if (!get_boolean(crl, "denoising_diffuse_direct"))        scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+		if (!get_boolean(crl, "denoising_diffuse_indirect"))      scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+		if (!get_boolean(crl, "denoising_glossy_direct"))         scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+		if (!get_boolean(crl, "denoising_glossy_indirect"))       scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+		if (!get_boolean(crl, "denoising_transmission_direct"))   scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+		if (!get_boolean(crl, "denoising_transmission_indirect")) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+		if (!get_boolean(crl, "denoising_subsurface_direct"))     scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+		if (!get_boolean(crl, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
 		session->params.denoising_radius = get_int(crl, "denoising_radius");
 		session->params.denoising_strength = get_float(crl, "denoising_strength");
 		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
 		session->params.denoising_relative_pca = get_boolean(crl, "denoising_relative_pca");
 
+		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
+		scene->film->tag_passes_update(scene, PS);
 		scene->integrator->tag_update(scene);
 
 		int view_index = 0;
@@ -557,7 +573,7 @@ void BlenderSession::bake(BL::Object& b_object,
 
 	if(shader_type == SHADER_EVAL_UV) {
 		/* force UV to be available */
-		scene->film->passes.add(PASS_UV);
+		scene->film->PS.add(PASS_UV);
 	}
 
 	int bake_pass_filter = bake_pass_filter_get(pass_filter);
@@ -565,7 +581,7 @@ void BlenderSession::bake(BL::Object& b_object,
 
 	/* force use_light_pass to be true if we bake more than just colors */
 	if(bake_pass_filter & ~BAKE_FILTER_COLOR) {
-		scene->film->passes.add(PASS_LIGHT);
+		scene->film->PS.add(PASS_LIGHT);
 	}
 
 	/* create device and update scene */

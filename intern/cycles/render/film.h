@@ -57,6 +57,7 @@ public:
 	bool exposure;
 	PassType divide_type;
 	bool is_virtual;
+
 	bool operator==(const Pass& other) const
 	{
 		return type == other.type && components == other.components && filter == other.filter
@@ -97,9 +98,9 @@ public:
 
 	bool denoising_data_pass;
 	bool denoising_clean_pass;
+	array<Pass> passes;
 
 protected:
-	array<Pass> passes;
 	array<AOV> aovs;
 
 	friend class Film;
@@ -110,7 +111,10 @@ public:
 	NODE_DECLARE
 
 	float exposure;
-	PassSettings passes;
+	PassSettings PS;
+	bool denoising_data_pass;
+	bool denoising_clean_pass;
+	int denoising_flags;
 	float pass_alpha_threshold;
 
 	int pass_stride;

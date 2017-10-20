@@ -167,6 +167,8 @@ CCL_NAMESPACE_BEGIN
 #define __PATCH_EVAL__
 #define __SHADOW_TRICKS__
 
+#define __DENOISING_FEATURES__
+
 #ifdef __KERNEL_SHADING__
 #  define __SVM__
 #  define __EMISSION__
@@ -443,6 +445,18 @@ typedef enum BakePassFilterCombos {
 	BAKE_FILTER_TRANSMISSION_INDIRECT = (BAKE_FILTER_INDIRECT | BAKE_FILTER_TRANSMISSION),
 	BAKE_FILTER_SUBSURFACE_INDIRECT = (BAKE_FILTER_INDIRECT | BAKE_FILTER_SUBSURFACE),
 } BakePassFilterCombos;
+
+typedef enum DenoiseFlag {
+	DENOISING_CLEAN_DIFFUSE_DIR = (1 << 0),
+	DENOISING_CLEAN_DIFFUSE_IND = (1 << 1),
+	DENOISING_CLEAN_GLOSSY_DIR = (1 << 2),
+	DENOISING_CLEAN_GLOSSY_IND = (1 << 3),
+	DENOISING_CLEAN_TRANSMISSION_DIR = (1 << 4),
+	DENOISING_CLEAN_TRANSMISSION_IND = (1 << 5),
+	DENOISING_CLEAN_SUBSURFACE_DIR = (1 << 6),
+	DENOISING_CLEAN_SUBSURFACE_IND = (1 << 7),
+	DENOISING_CLEAN_ALL_PASSES = (1 << 8) - 1,
+} DenoiseFlag;
 
 typedef ccl_addr_space struct PathRadiance {
 #ifdef __PASSES__
@@ -1155,6 +1169,11 @@ typedef struct KernelFilm {
 	float mist_start;
 	float mist_inv_depth;
 	float mist_falloff;
+
+	int pass_denoising_data;
+	int pass_denoising_clean;
+	int denoising_flags;
+	int pad;
 
 	int pass_aov[32];
 	

@@ -44,6 +44,11 @@ BufferParams::BufferParams()
 
 	aov_color_passes = 0;
 	aov_value_passes = 0;
+
+	denoising_clean_pass = false;
+	denoising_data_pass  = false;
+
+	PS.add(PASS_COMBINED);
 }
 
 void BufferParams::get_offset_stride(int& offset, int& stride)
@@ -60,7 +65,7 @@ bool BufferParams::modified(const BufferParams& params)
 		&& height == params.height
 		&& full_width == params.full_width
 		&& full_height == params.full_height
-		&& !passes.modified(params.passes));
+		&& !PS.modified(params.PS));
 }
 
 /* Render Buffer Task */
@@ -119,7 +124,7 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device_free();
 	
 	/* allocate buffer */
-	buffer.resize(params.width*params.height*params.passes.get_size());
+	buffer.resize(params.width*params.height*params.PS.get_size());
 	device->mem_alloc("render_buffer", buffer, MEM_READ_WRITE);
 	device->mem_zero(buffer);
 
@@ -138,7 +143,7 @@ bool RenderBuffers::copy_from_device(Device *from_device)
 		from_device = device;
 	}
 
-	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.passes.get_size()*sizeof(float));
+	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.PS.get_size()*sizeof(float));
 
 	return true;
 }
@@ -154,9 +159,9 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 		scale *= exposure*exposure;
 	}
 
-	offset += params.passes.get_denoising_offset();
+	offset += params.PS.get_denoising_offset();
 	float *in = (float*)buffer.data_pointer + offset;
-	int pass_stride = params.passes.get_size();
+	int pass_stride = params.PS.get_size();
 	int size = params.width*params.height;
 
 	if(components == 1) {
@@ -181,14 +186,14 @@ bool RenderBuffers::get_aov_rect(ustring name, float exposure, int sample, int c
 {
 	int aov_offset = 0;
 
-	AOV *aov = params.passes.get_aov(name, aov_offset);
+	AOV *aov = params.PS.get_aov(name, aov_offset);
 
 	if(!aov) {
 		return false;
 	}
 
 	float *in = (float*)buffer.data_pointer + aov_offset;
-	int pass_stride = params.passes.get_size();
+	int pass_stride = params.PS.get_size();
 
 	float scale = (aov->type == AOV_RGB) ? exposure/sample : 1.0f/(float)sample; /* TODO has_exposure */
 
@@ -236,13 +241,13 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 {
 	int pass_offset = 0;
 
-	Pass *pass = params.passes.get_pass(type, pass_offset);
+	Pass *pass = params.PS.get_pass(type, pass_offset);
 	if (!pass) {
 		return false;
 	}
 	
 	float *in = (float*)buffer.data_pointer + pass_offset;
-	int pass_stride = params.passes.get_size();
+	int pass_stride = params.PS.get_size();
 	
 	float scale = (pass->filter)? 1.0f/(float)sample: 1.0f;
 	float scale_exposure = (pass->exposure)? scale*exposure: scale;
@@ -300,7 +305,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		}
 		else if(pass->divide_type != PASS_NONE) {
 			/* RGB lighting passes that need to divide out color */
-			params.passes.get_pass(pass->divide_type, pass_offset);
+			params.PS.get_pass(pass->divide_type, pass_offset);
 			
 			float *in_divide = (float*)buffer.data_pointer + pass_offset;
 			
@@ -343,7 +348,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 		}			else if(type == PASS_MOTION) {
 			/* need to normalize by number of samples accumulated for motion */
 			
-			params.passes.get_pass(PASS_MOTION_WEIGHT, pass_offset);
+			params.PS.get_pass(PASS_MOTION_WEIGHT, pass_offset);
 			
 			float *in_weight = (float*)buffer.data_pointer + pass_offset;
 			

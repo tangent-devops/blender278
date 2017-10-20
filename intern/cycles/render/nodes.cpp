@@ -4917,7 +4917,7 @@ AOVOutputNode::AOVOutputNode()
 void AOVOutputNode::compile(SVMCompiler& compiler)
 {
 	int dummy;
-	AOV *aov = compiler.film->passes.get_aov(name, dummy);
+	AOV *aov = compiler.film->PS.get_aov(name, dummy);
 
 	if(!aov) {
 		return;
@@ -4934,7 +4934,7 @@ void AOVOutputNode::compile(SVMCompiler& compiler)
 void AOVOutputNode::compile(OSLCompiler& compiler)
 {
 	int dummy;
-	AOV *aov = compiler.film->passes.get_aov(name, dummy);
+	AOV *aov = compiler.film->PS.get_aov(name, dummy);
 
 	if(!aov) {
 		return;

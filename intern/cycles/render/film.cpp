@@ -405,7 +405,10 @@ NODE_DEFINE(Film)
 	SOCKET_FLOAT(mist_falloff, "Mist Falloff", 1.0f);
 
 	SOCKET_BOOLEAN(use_sample_clamp, "Use Sample Clamp", false);
-
+	
+	SOCKET_BOOLEAN(denoising_data_pass,  "Generate Denoising Data Pass",  false);
+	SOCKET_BOOLEAN(denoising_clean_pass, "Generate Denoising Clean Pass", false);
+	SOCKET_INT(denoising_flags, "Denoising Flags", 0);
 	SOCKET_INT(object_id_slots, "Object ID Slots", 0);
 	
 	return type;
@@ -440,8 +443,8 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->pass_stride = 0;
 	kfilm->use_light_pass = use_light_visibility || use_sample_clamp;
 
-	for(size_t i = 0; i < passes.passes.size(); i++) {
-		Pass& pass = passes.passes[i];
+	for(size_t i = 0; i < PS.passes.size(); i++) {
+		Pass& pass = PS.passes[i];
 		kfilm->pass_flag |= pass.type;
 
 		switch(pass.type) {
@@ -558,16 +561,16 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				break;
 #endif
 			case PASS_AOV_COLOR:
-				for(int j = 0; j < passes.aovs.size(); j++) {
-					if(passes.aovs[j].type != AOV_FLOAT) {
+				for(int j = 0; j < PS.aovs.size(); j++) {
+					if(PS.aovs[j].type != AOV_FLOAT) {
 						kfilm->pass_aov[j] = kfilm->pass_stride | (1 << 31);
 						kfilm->pass_stride += 4;
 					}
 				}
 				break;
 			case PASS_AOV_VALUE:
-				for(int j = 0; j < passes.aovs.size(); j++) {
-					if(passes.aovs[j].type == AOV_FLOAT) {
+				for(int j = 0; j < PS.aovs.size(); j++) {
+					if(PS.aovs[j].type == AOV_FLOAT) {
 						kfilm->pass_aov[j] = kfilm->pass_stride & ~(1 << 31);
 						kfilm->pass_stride += 1;
 					}
@@ -580,6 +583,20 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
 		if(!pass.is_virtual) {
 			kfilm->pass_stride += pass.components;
+		}
+	}
+
+	kfilm->pass_denoising_data = 0;
+	kfilm->pass_denoising_clean = 0;
+	kfilm->denoising_flags = 0;
+	if (denoising_data_pass) {
+		kfilm->pass_denoising_data = kfilm->pass_stride;
+		kfilm->pass_stride += DENOISING_PASS_SIZE_BASE;
+		kfilm->denoising_flags = denoising_flags;
+		if (denoising_clean_pass) {
+			kfilm->pass_denoising_clean = kfilm->pass_stride;
+			kfilm->pass_stride += DENOISING_PASS_SIZE_CLEAN;
+			kfilm->use_light_pass = 1;
 		}
 	}
 
@@ -597,6 +614,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->mist_inv_depth = (mist_depth > 0.0f)? 1.0f/mist_depth: 0.0f;
 	kfilm->mist_falloff = mist_falloff;
 
+	pass_stride = kfilm->pass_stride;
+	denoising_data_offset = kfilm->pass_denoising_data;
+	denoising_clean_offset = kfilm->pass_denoising_clean;
 	kfilm->use_cryptomatte = use_cryptomatte;
 	
 	need_update = false;
@@ -611,21 +631,21 @@ void Film::device_free(Device * /*device*/,
 
 bool Film::modified(const Film& film)
 {
-	return !Node::equals(film) || passes.modified(film.passes);
+	return !Node::equals(film) || PS.modified(film.PS);
 }
 
-void Film::tag_passes_update(Scene *scene, const PassSettings& passes_)
+void Film::tag_passes_update(Scene *scene, const PassSettings& PS_)
 {
-	if(passes.contains(PASS_UV) != passes_.contains(PASS_UV)) {
+	if(PS.contains(PASS_UV) != PS_.contains(PASS_UV)) {
 		scene->mesh_manager->tag_update(scene);
 
 		foreach(Shader *shader, scene->shaders)
 			shader->need_update_attributes = true;
 	}
-	else if(passes.contains(PASS_MOTION) != passes_.contains(PASS_MOTION))
+	else if(PS.contains(PASS_MOTION) != PS_.contains(PASS_MOTION))
 		scene->mesh_manager->tag_update(scene);
 
-	passes = passes_;
+	PS = PS_;
 }
 
 void Film::tag_update(Scene * /*scene*/)

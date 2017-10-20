@@ -50,9 +50,12 @@ public:
 	int full_height;
 
 	/* passes */
-	PassSettings passes;
+	PassSettings PS;
 	int aov_color_passes;
 	int aov_value_passes;
+	bool denoising_data_pass;
+	/* If only some light path types should be denoised, an additional pass is needed. */
+	bool denoising_clean_pass;
 
 	/* functions */
 	BufferParams();
