@@ -400,7 +400,7 @@ void BlenderSession::render()
 		/* add passes */
 		PassSettings PS;
 		PS.passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
-		buffer_params.PS = scene->film->PS;
+		buffer_params.PS.passes = scene->film->PS.passes;
         
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
@@ -426,6 +426,7 @@ void BlenderSession::render()
 
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, PS);
+		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 
 		int view_index = 0;
