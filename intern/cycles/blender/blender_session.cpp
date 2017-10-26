@@ -400,7 +400,7 @@ void BlenderSession::render()
 		/* add passes */
 		PassSettings PS;
 		PS.passes = sync->sync_render_passes(b_rlay, *b_layer_iter, session_params);
-		buffer_params.PS.passes = scene->film->PS.passes;
+		buffer_params.PS.passes = PS.passes;
         
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
