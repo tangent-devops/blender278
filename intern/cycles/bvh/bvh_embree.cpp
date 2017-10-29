@@ -26,7 +26,7 @@
 
 #include "embree2/rtcore_geometry.h"
 
-/* kernel includes are necessary so that the filter function for embree can access the packed BVH */
+/* Kernel includes are necessary so that the filter function for Embree can access the packed BVH. */
 #include "kernel/kernel_compat_cpu.h"
 #include "kernel/split/kernel_split_data_types.h"
 #include "kernel/kernel_globals.h"
@@ -42,7 +42,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* This gets called by embree at every valid ray/object intersection.
+/* This gets called by Embree at every valid ray/object intersection.
  * Things like recording subsurface or shadow hits for later evaluation
  * as well as filtering for volume objects happen here.
  * Cycles' own BVH does that directly inside the traversal calls.
@@ -69,7 +69,7 @@ void rtc_filter_func(void*, RTCRay& ray_)
 		return;
 	}
 	else if(ray.type == CCLRay::RAY_SHADOW_ALL) {
-		// append the intersection to the end of the array
+		/* Append the intersection to the end of the array. */
 		if(ray.num_hits < ray.max_hits) {
 			Intersection *isect = &ray.isect_s[ray.num_hits];
 			ray.num_hits++;
@@ -85,9 +85,9 @@ void rtc_filter_func(void*, RTCRay& ray_)
 				shader = __float_as_int(str.z);
 			}
 			int flag = kernel_tex_fetch(__shader_flag, (shader & SHADER_MASK)*SHADER_SIZE);
-			/* if no transparent shadows, all light is blocked */
-			if(flag & SD_HAS_TRANSPARENT_SHADOW) {
-				/* this tells embree to continue tracing */
+			/* If no transparent shadows, all light is blocked. */
+			if(flag & (SD_HAS_TRANSPARENT_SHADOW)) {
+				/* This tells Embree to continue tracing. */
 				ray.geomID = RTC_INVALID_GEOMETRY_ID;
 			}
 			else {
@@ -102,17 +102,17 @@ void rtc_filter_func(void*, RTCRay& ray_)
 		return;
 	}
 	else if(ray.type == CCLRay::RAY_SSS) {
-		/* only accept hits from the same object and triangles */
+		/* Only accept hits from the same object and triangles. */
 		if(ray.instID/2 != ray.sss_object_id || ray.geomID & 1) {
-			/* this tells embree to continue tracing */
+			/* This tells Embree to continue tracing. */
 			ray.geomID = RTC_INVALID_GEOMETRY_ID;
 			return;
 		}
 
-		/* see triangle_intersect_subsurface() for the native equivalent */
+		/* See triangle_intersect_subsurface() for the native equivalent. */
 		for(int i = min(ray.max_hits, ray.ss_isect->num_hits) - 1; i >= 0; --i) {
 			if(ray.ss_isect->hits[i].t == ray.tfar) {
-				/* this tells embree to continue tracing */
+				/* This tells Embree to continue tracing. */
 				ray.geomID = RTC_INVALID_GEOMETRY_ID;
 				return;
 			}
@@ -130,7 +130,7 @@ void rtc_filter_func(void*, RTCRay& ray_)
 			hit = lcg_step_uint(ray.lcg_state) % ray.ss_isect->num_hits;
 
 			if(hit >= ray.max_hits) {
-				/* this tells embree to continue tracing */
+				/* This tells Embree to continue tracing. */
 				ray.geomID = RTC_INVALID_GEOMETRY_ID;
 				return;
 			}
@@ -141,22 +141,22 @@ void rtc_filter_func(void*, RTCRay& ray_)
 		ray.ss_isect->Ng[hit].y = -ray.Ng[1];
 		ray.ss_isect->Ng[hit].z = -ray.Ng[2];
 		ray.ss_isect->Ng[hit] = normalize(ray.ss_isect->Ng[hit]);
-		/* this tells embree to continue tracing */
+		/* this tells Embree to continue tracing */
 		ray.geomID = RTC_INVALID_GEOMETRY_ID;
 		return;
 	} else if(ray.type == CCLRay::RAY_VOLUME_ALL) {
-		// append the intersection to the end of the array
+		/* Append the intersection to the end of the array. */
 		if(ray.num_hits < ray.max_hits) {
 			Intersection *isect = &ray.isect_s[ray.num_hits];
 			ray.num_hits++;
 			ray.isect_to_ccl(isect);
-			/* only primitives from volume object */
+			/* Only primitives from volume object. */
 			uint tri_object = kernel_tex_fetch(__prim_object, isect->prim);
 			int object_flag = kernel_tex_fetch(__object_flag, tri_object);
 			if((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
 				ray.num_hits--;
 			}
-			/* this tells embree to continue tracing */
+			/* This tells Embree to continue tracing. */
 			ray.geomID = RTC_INVALID_GEOMETRY_ID;
 			return;
 		}
@@ -200,8 +200,8 @@ thread_mutex BVHEmbree::rtc_shared_mutex;
 
 BVHEmbree::BVHEmbree(const BVHParams& params_, const vector<Object*>& objects_)
 : BVH(params_, objects_), scene(NULL), mem_used(0), top_level(NULL), stats(NULL),
-  use_curves(params_.curve_flags & CURVE_KN_INTERPOLATE), use_ribbons(params.curve_flags & CURVE_KN_RIBBONS),
-  curve_subdivisions(params.curve_subdivisions)
+  curve_subdivisions(params.curve_subdivisions), use_curves(params_.curve_flags & CURVE_KN_INTERPOLATE),
+  use_ribbons(params.curve_flags & CURVE_KN_RIBBONS), dynamic_scene(true)
 {
 	_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 	_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
@@ -245,7 +245,7 @@ BVHEmbree::BVHEmbree(const BVHParams& params_, const vector<Object*>& objects_)
 
 	rtcDeviceSetMemoryMonitorFunction2(rtc_shared_device, rtc_memory_monitor_func, this);
 
-	/* BVH_CUSTOM as root index signals to the rest of the code that this is not Cycle's own BVH */
+	/* BVH_CUSTOM as root index signals to the rest of the code that this is not Cycle's own BVH. */
 	pack.root_index = BVH_CUSTOM;
 }
 
@@ -264,7 +264,7 @@ void BVHEmbree::delete_rtcScene()
 {
 	if(scene) {
 		/* When this BVH is used as an instance in a top level BVH, don't delete now
-		 * Let the top_level BVH know that it should delete it later */
+		 * Let the top_level BVH know that it should delete it later. */
 		if(top_level) {
 			top_level->add_delayed_delete_scene(scene);
 		}
@@ -436,7 +436,7 @@ unsigned BVHEmbree::add_triangles(Mesh *mesh, int i)
 						i*2);
 
 #ifdef EMBREE_SHARED_MEM
-	/* embree and Cycles use the same memory layout, so we can conveniently use the rtcSetBuffer2 calls */
+	/* Embree and Cycles use the same memory layout, so we can conveniently use the rtcSetBuffer2 calls. */
 	rtcSetBuffer2(scene, geom_id, RTC_INDEX_BUFFER, &mesh->triangles[0], 0, sizeof(int) * 3);
 #else
 	void* raw_buffer = rtcMapBuffer(scene, geom_id, RTC_INDEX_BUFFER);
@@ -527,7 +527,7 @@ void BVHEmbree::update_curve_vertex_buffer(unsigned geom_id, const Mesh* mesh)
 
 	const size_t num_keys = mesh->curve_keys.size();
 
-	/* Copy the CV data to embree */
+	/* Copy the CV data to Embree */
 	int t_mid = (num_motion_steps - 1) / 2;
 	const float *curve_radius = &mesh->curve_radius[0];
 	for(int t = 0; t < num_motion_steps; t++) {
@@ -643,7 +643,7 @@ unsigned BVHEmbree::add_curves(Mesh *mesh, int i)
 		}
 		rtcSetTessellationRate(scene, geom_id, curve_subdivisions);
 
-		/* Split the Cycles curves into embree hair segments, each with 4 CVs */
+		/* Split the Cycles curves into Embree hair segments, each with 4 CVs */
 		void* raw_buffer = rtcMapBuffer(scene, geom_id, RTC_INDEX_BUFFER);
 		unsigned *rtc_indices = (unsigned*) raw_buffer;
 		size_t rtc_index = 0;
@@ -674,7 +674,7 @@ unsigned BVHEmbree::add_curves(Mesh *mesh, int i)
 													 i*2+1);
 
 
-		/* Split the Cycles curves into embree line segments, each with 2 CVs */
+		/* Split the Cycles curves into Embree line segments, each with 2 CVs */
 		void* raw_buffer = rtcMapBuffer(scene, geom_id, RTC_INDEX_BUFFER);
 		unsigned *rtc_indices = (unsigned*) raw_buffer;
 		size_t rtc_index = 0;
