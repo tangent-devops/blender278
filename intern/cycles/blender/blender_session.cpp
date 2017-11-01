@@ -405,6 +405,7 @@ void BlenderSession::render()
 		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
 		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
 		buffer_params.denoising_data_pass = use_denoising;
+		//PS.denoising_data_pass = use_denoising;
 		session->tile_manager.schedule_denoising = use_denoising;
 		session->params.use_denoising = use_denoising;
 		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
@@ -419,6 +420,7 @@ void BlenderSession::render()
 		if (!get_boolean(crl, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
 		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
 		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
+		//PS.denoising_clean_pass = scene->film->denoising_clean_pass;
 		session->params.denoising_radius = get_int(crl, "denoising_radius");
 		session->params.denoising_strength = get_float(crl, "denoising_strength");
 		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");

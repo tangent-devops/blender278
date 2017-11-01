@@ -68,6 +68,31 @@ bool BufferParams::modified(const BufferParams& params)
 		&& !PS.modified(params.PS));
 }
 
+int BufferParams::get_passes_size()
+{
+	int size = 0;
+
+	for (size_t i = 0; i < PS.passes.size(); i++)
+		size += PS.passes[i].components;
+
+	if (denoising_data_pass) {
+		size += DENOISING_PASS_SIZE_BASE;
+		if (denoising_clean_pass) size += DENOISING_PASS_SIZE_CLEAN;
+	}
+
+	return align_up(size, 4);
+}
+
+int BufferParams::get_denoising_offset()
+{
+	int offset = 0;
+
+	for (size_t i = 0; i < PS.passes.size(); i++)
+		offset += PS.passes[i].components;
+
+	return offset;
+}
+
 /* Render Buffer Task */
 
 RenderTile::RenderTile()
@@ -124,7 +149,7 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device_free();
 	
 	/* allocate buffer */
-	buffer.resize(params.width*params.height*params.PS.get_size());
+	buffer.resize(params.width*params.height*params.get_passes_size());
 	device->mem_alloc("render_buffer", buffer, MEM_READ_WRITE);
 	device->mem_zero(buffer);
 
@@ -143,7 +168,7 @@ bool RenderBuffers::copy_from_device(Device *from_device)
 		from_device = device;
 	}
 
-	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.PS.get_size()*sizeof(float));
+	from_device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
 
 	return true;
 }
@@ -159,9 +184,9 @@ bool RenderBuffers::get_denoising_pass_rect(int offset, float exposure, int samp
 		scale *= exposure*exposure;
 	}
 
-	offset += params.PS.get_denoising_offset();
+	offset += params.get_denoising_offset();
 	float *in = (float*)buffer.data_pointer + offset;
-	int pass_stride = params.PS.get_size();
+	int pass_stride = params.get_passes_size();
 	int size = params.width*params.height;
 
 	if(components == 1) {
@@ -193,7 +218,7 @@ bool RenderBuffers::get_aov_rect(ustring name, float exposure, int sample, int c
 	}
 
 	float *in = (float*)buffer.data_pointer + aov_offset;
-	int pass_stride = params.PS.get_size();
+	int pass_stride = params.get_passes_size();
 
 	float scale = (aov->type == AOV_RGB) ? exposure/sample : 1.0f/(float)sample; /* TODO has_exposure */
 
@@ -247,7 +272,7 @@ bool RenderBuffers::get_pass_rect(PassType type, float exposure, int sample, int
 	}
 	
 	float *in = (float*)buffer.data_pointer + pass_offset;
-	int pass_stride = params.PS.get_size();
+	int pass_stride = params.get_passes_size();
 	
 	float scale = (pass->filter)? 1.0f/(float)sample: 1.0f;
 	float scale_exposure = (pass->exposure)? scale*exposure: scale;

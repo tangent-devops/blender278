@@ -62,6 +62,9 @@ public:
 
 	void get_offset_stride(int& offset, int& stride);
 	bool modified(const BufferParams& params);
+	void add_pass(PassType type);
+	int get_passes_size();
+	int get_denoising_offset();
 };
 
 /* Render Buffers */
