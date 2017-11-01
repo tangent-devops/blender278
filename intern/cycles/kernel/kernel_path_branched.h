@@ -602,10 +602,9 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray, buffer, sample);
+			float3 L_background = indirect_background(kg, &sd, &state, &ray, buffer, sample);
 			path_radiance_accum_background(&L, &state, throughput, L_background);
 #endif  /* __BACKGROUND__ */
-
 			break;
 		}
 

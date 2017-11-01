@@ -32,7 +32,31 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* BACKGROUND CLOSURE */
+
+ccl_device void background_setup(ShaderData *sd, const float3 weight)
+{
+	if(sd->runtime_flag & SD_RUNTIME_EMISSION) {
+		sd->closure_emission_background += weight;
+	}
+	else {
+		sd->runtime_flag |= SD_RUNTIME_EMISSION;
+		sd->closure_emission_background = weight;
+	}
+}
+
 /* EMISSION CLOSURE */
+
+ccl_device void emission_setup(ShaderData *sd, const float3 weight)
+{
+	if(sd->runtime_flag & SD_RUNTIME_EMISSION) {
+		sd->closure_emission_background += weight;
+	}
+	else {
+		sd->runtime_flag |= SD_RUNTIME_EMISSION;
+		sd->closure_emission_background = weight;
+	}
+}
 
 /* return the probability distribution function in the direction I,
  * given the parameters and the light's surface normal.  This MUST match

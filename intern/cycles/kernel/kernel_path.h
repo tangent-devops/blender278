@@ -152,7 +152,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 			/* intersect with lamp */
 			float3 emission;
-			if(indirect_lamp_emission(kg, emission_sd, state, &light_ray, &emission, light_linking)) {
+			if(indirect_lamp_emission(kg, sd, state, &light_ray, &emission, light_linking)) {
 				path_radiance_accum_emission(L,
 				                             throughput,
 				                             emission,
@@ -313,13 +313,12 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		if(!hit) {
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, emission_sd, state, ray, NULL, 0);
+			float3 L_background = indirect_background(kg, sd, state, ray, NULL, 0);
 			path_radiance_accum_background(L,
 			                               state,
 			                               throughput,
 			                               L_background);
 #endif  /* __BACKGROUND__ */
-
 			break;
 		}
 		else if(state->bounce > kernel_data.integrator.ao_bounces) {
