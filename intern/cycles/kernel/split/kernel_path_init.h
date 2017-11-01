@@ -78,7 +78,7 @@ ccl_device void kernel_path_init(KernelGlobals *kg) {
 		kernel_split_state.L_transparent[ray_index] = 0.0f;
 		path_radiance_init(&kernel_split_state.path_radiance[ray_index], kernel_data.film.use_light_pass);
 		path_state_init(kg,
-		                &kernel_split_state.sd_DL_shadow[ray_index],
+		                AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]),
 		                &kernel_split_state.path_state[ray_index],
 		                &rng,
 		                my_sample,

@@ -997,10 +997,10 @@ ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 /* Surface Evaluation */
 
 ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
-	ccl_addr_space PathState *state, float randb, int path_flag, ShaderContext ctx, ccl_global float *buffer, int sample)
+	ccl_addr_space PathState *state, float randb, int path_flag, int max_closure, ShaderContext ctx, ccl_global float *buffer, int sample)
 {
 	sd->num_closure = 0;
-	sd->num_closure_extra = 0;
+	sd->num_closure_left = max_closure;
 	sd->randb_closure = randb;
 
 #ifdef __OSL__
@@ -1031,7 +1031,7 @@ ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
 	ccl_addr_space PathState *state, int path_flag, ShaderContext ctx, float *buffer, int sample)
 {
 	sd->num_closure = 0;
-	sd->num_closure_extra = 0;
+	sd->num_closure_left = 0;
 	sd->randb_closure = 0.0f;
 
 #ifdef __SVM__
@@ -1207,6 +1207,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
                                           ccl_addr_space PathState *state,
                                           ccl_addr_space VolumeStack *stack,
                                           int path_flag,
+                                          int max_closure,
                                           ShaderContext ctx)
 {
 	/* motion blur for volumes */
@@ -1225,7 +1226,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 	/* reset closures once at the start, we will be accumulating the closures
 	 * for all volumes in the stack into a single array of closures */
 	sd->num_closure = 0;
-	sd->num_closure_extra = 0;
+	sd->num_closure_left = max_closure;
 	sd->runtime_flag = 0;
 	sd->shader_flag = 0;
 	sd->object_flag = 0;
@@ -1288,7 +1289,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, ShaderContext ctx)
 {
 	sd->num_closure = 0;
-	sd->num_closure_extra = 0;
+	sd->num_closure_left = 0;
 	sd->randb_closure = 0.0f;
 
 	/* this will modify sd->P */

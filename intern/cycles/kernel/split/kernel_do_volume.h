@@ -16,7 +16,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-
 ccl_device void kernel_do_volume(KernelGlobals *kg)
 {
 #ifdef __VOLUME__
@@ -53,8 +52,8 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 		RNG rng = kernel_split_state.rng[ray_index];
 		ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
 		ShaderData *sd = &kernel_split_state.sd[ray_index];
-		ShaderData *sd_input = &kernel_split_state.sd_DL_shadow[ray_index];
-
+		ShaderData *emission_sd = AS_SHADER_DATA(&kernel_split_state.sd_DL_shadow[ray_index]);
+		
 		/* Sanitize volume stack. */
 		if(!hit) {
 			kernel_volume_clean_stack(kg, state->volume_stack);
@@ -74,7 +73,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 #  ifdef __VOLUME_SCATTER__
 				if(result == VOLUME_PATH_SCATTERED) {
 					/* direct lighting */
-					kernel_path_volume_connect_light(kg, &rng, sd, sd_input, *throughput, state, L, 0x00000, 0x00000);
+					kernel_path_volume_connect_light(kg, &rng, sd, emission_sd, *throughput, state, L, 0x00000, 0x00000);
 
 					/* indirect light bounce */
 					if(kernel_path_volume_bounce(kg, &rng, sd, throughput, state, L, ray))

@@ -336,7 +336,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		if (!(sd->shader_flag & SD_SHADER_HAS_ONLY_VOLUME)) {
 #endif
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, state, PRNG_BSDF);
-		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT, NULL, 0);
+		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, MAX_CLOSURE, SHADER_CONTEXT_INDIRECT, NULL, 0);
 #ifdef __BRANCHED_PATH__
 		shader_merge_closures(sd);
 #endif  /* __BRANCHED_PATH__ */
@@ -645,11 +645,12 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 
 	/* shader data memory used for both volumes and surfaces, saves stack space */
 	ShaderData sd;
-	/* shader data used by emission, shadows, volume stacks */
-	ShaderData emission_sd;
+
+	ShaderDataTinyStorage emission_sd_storage;
+	ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
 
 	PathState state;
-	path_state_init(kg, &emission_sd, &state, rng, sample, &ray);
+	path_state_init(kg, emission_sd, &state, rng, sample, &ray);
 
 #ifdef __KERNEL_DEBUG__
 	DebugData debug_data;
@@ -714,7 +715,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 			/* intersect with lamp */
 			float3 emission;
 
-			if(indirect_lamp_emission(kg, &emission_sd, &state, &light_ray, &emission, 0x00000000/*TODO:What goes here*/))
+			if(indirect_lamp_emission(kg, &sd, &state, &light_ray, &emission, 0x00000000/*TODO:What goes here*/))
 				path_radiance_accum_emission(&L, throughput, emission, state.bounce);
 		}
 #endif  /* __LAMP_MIS__ */
@@ -760,7 +761,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 
 					/* direct light sampling */
 					kernel_branched_path_volume_connect_light(kg, rng, &sd,
-						&emission_sd, throughput, &state, &L, all,
+						emission_sd, throughput, &state, &L, all,
 						&volume_ray, &volume_segment, light_linking, shadow_linking);
 
 					/* indirect sample. if we use distance sampling and take just
@@ -800,7 +801,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
                     uint light_linking = object_light_linking(kg, sd.object);
                     uint shadow_linking = object_shadow_linking(kg, sd.object);
 
-					kernel_path_volume_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, &L, light_linking, shadow_linking);
+					kernel_path_volume_connect_light(kg, rng, &sd, emission_sd, throughput, &state, &L, light_linking, shadow_linking);
 
 					/* indirect light bounce */
 					if(kernel_path_volume_bounce(kg, rng, &sd, &throughput, &state, &L, &ray))
@@ -826,7 +827,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &emission_sd, &state, &ray, buffer, sample);
+			float3 L_background = indirect_background(kg, &sd, &state, &ray, buffer, sample);
 			path_radiance_accum_background(&L, &state, throughput, L_background);
 #endif  /* __BACKGROUND__ */
 
@@ -844,7 +845,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 		if (!(sd.shader_flag & SD_SHADER_HAS_ONLY_VOLUME)) {
 #endif
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, &state, PRNG_BSDF);
-		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN, buffer, sample);
+		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, MAX_CLOSURE, SHADER_CONTEXT_MAIN, buffer, sample);
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_OBJECT_SHADOW_CATCHER)) {
@@ -852,7 +853,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 				state.flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_STORE_SHADOW_INFO | PATH_RAY_SHADOW_CATCHER_ONLY);
 				state.catcher_object = sd.object;
 				if(!kernel_data.background.transparent) {
-					L.shadow_color = indirect_background(kg, &emission_sd, &state, &ray, buffer, sample);
+					L.shadow_color = indirect_background(kg, emission_sd, &state, &ray, buffer, sample);
 				}
 			}
 		}
@@ -927,7 +928,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 #ifdef __AO__
 		/* ambient occlusion */
 		if(kernel_data.integrator.use_ambient_occlusion || (sd.runtime_flag & SD_RUNTIME_AO)) {
-			kernel_path_ao(kg, &sd, &emission_sd, &L, &state, rng, throughput, shader_bsdf_alpha(kg, &sd));
+			kernel_path_ao(kg, &sd, emission_sd, &L, &state, rng, throughput, shader_bsdf_alpha(kg, &sd));
 		}
 #endif  /* __AO__ */
 
@@ -937,7 +938,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 		if(sd.runtime_flag & SD_RUNTIME_BSSRDF) {
 			if(kernel_path_subsurface_scatter(kg,
 			                                  &sd,
-			                                  &emission_sd,
+			                                  emission_sd,
 			                                  &L,
 			                                  &state,
 			                                  rng,
@@ -954,7 +955,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
         uint light_linking = object_light_linking(kg, sd.object);
         uint shadow_linking = object_shadow_linking(kg, sd.object);
 
-		kernel_path_surface_connect_light(kg, rng, &sd, &emission_sd, throughput, &state, &L, light_linking, shadow_linking);
+		kernel_path_surface_connect_light(kg, rng, &sd, emission_sd, throughput, &state, &L, light_linking, shadow_linking);
 
 #ifdef __VOLUME__
 		}

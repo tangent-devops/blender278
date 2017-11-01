@@ -130,7 +130,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *sd, ShaderD
 					}
 					else {
 						path_state_modify_bounce(state, true);
-						shader_eval_surface(kg, &sd/*shadow_sd*/, NULL, state, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW, NULL, 0);
+						shader_eval_surface(kg, &sd/*shadow_sd*/, NULL, state, 0.0f, PATH_RAY_SHADOW, 0, SHADER_CONTEXT_SHADOW, NULL, 0);
 						path_state_modify_bounce(state, false);
 
 						throughput *= shader_bsdf_transparency(kg, &sd/*shadow_sd*/);
