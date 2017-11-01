@@ -786,7 +786,7 @@ enum ShaderDataRuntimeFlag {
 	SD_RUNTIME_BSDF_HAS_EVAL	= (1 << 3),   /* have non-singular bsdf closure? */
 	SD_RUNTIME_BSSRDF			= (1 << 4),   /* have bssrdf */
 	SD_RUNTIME_HOLDOUT			= (1 << 5),   /* have holdout closure? */
-	SD_RUNTIME_ABSORPTION		= (1 << 6),   /* have volume absorption closure? */
+	SD_RUNTIME_EXTINCTION		= (1 << 6),   /* have volume absorption closure? */
 	SD_RUNTIME_SCATTER			= (1 << 7),   /* have volume phase closure? */
 	SD_RUNTIME_AO				= (1 << 8),   /* have ao closure? */
 	SD_RUNTIME_TRANSPARENT		= (1 << 9),   /* have transparent closure? */
@@ -794,7 +794,7 @@ enum ShaderDataRuntimeFlag {
 
 	SD_RUNTIME_CLOSURE_FLAGS = (SD_RUNTIME_BACKFACING | SD_RUNTIME_EMISSION | SD_RUNTIME_BSDF | 
 								SD_RUNTIME_BSDF_HAS_EVAL | SD_RUNTIME_BSSRDF | SD_RUNTIME_HOLDOUT | 
-								SD_RUNTIME_ABSORPTION | SD_RUNTIME_SCATTER | SD_RUNTIME_AO | SD_RUNTIME_TRANSPARENT |
+								SD_RUNTIME_EXTINCTION | SD_RUNTIME_SCATTER | SD_RUNTIME_AO | SD_RUNTIME_TRANSPARENT |
 								SD_RUNTIME_BSDF_NEEDS_LCG)
 };
 
@@ -965,6 +965,7 @@ typedef ccl_addr_space struct ShaderData {
 	/* Closure weights summed directly, so we can evaluate
 	 * emission and shadow transparency with MAX_CLOSURE 0. */
 	float3 closure_emission_background;
+	float3 closure_transparent_extinction;
 
 	/* At the end so we can adjust size in ShaderDataTinyStorage. */
 	struct ShaderClosure closure[MAX_CLOSURE];

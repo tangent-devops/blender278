@@ -30,7 +30,7 @@ typedef enum VolumeIntegrateResult {
  * sigma_t = sigma_a + sigma_s */
 
 typedef struct VolumeShaderCoefficients {
-	float3 sigma_a;
+	float3 sigma_t;
 	float3 sigma_s;
 	float3 emission;
 } VolumeShaderCoefficients;
@@ -45,20 +45,13 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
 	sd->P = P;
 	shader_eval_volume(kg, sd, state, state->volume_stack, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
 
-	if(!(sd->runtime_flag & (SD_RUNTIME_ABSORPTION|SD_RUNTIME_SCATTER)))
-		return false;
-
-	float3 sigma_t = make_float3(0.0f, 0.0f, 0.0f);
-
-	for(int i = 0; i < sd->num_closure; i++) {
-		const ShaderClosure *sc = &sd->closure[i];
-
-		if(CLOSURE_IS_VOLUME(sc->type))
-			sigma_t += sc->weight;
+	if(sd->runtime_flag & SD_RUNTIME_EXTINCTION) {
+		*extinction = sd->closure_transparent_extinction;
+		return true;
 	}
-
-	*extinction = sigma_t;
-	return true;
+	else {
+		return false;
+	}
 }
 
 ccl_device_inline void kernel_volume_branch_stack(float distance, VolumeStack *stack)
@@ -91,30 +84,27 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals *kg,
 	sd->P = P;
 	shader_eval_volume(kg, sd, state, state->volume_stack, state->flag, SHADER_CONTEXT_VOLUME);
 
-	if (!(sd->runtime_flag & (SD_RUNTIME_ABSORPTION | SD_RUNTIME_SCATTER | SD_RUNTIME_EMISSION)))
+	if(!(sd->runtime_flag & (SD_RUNTIME_EXTINCTION|SD_RUNTIME_SCATTER|SD_RUNTIME_EMISSION)))
 		return false;
 	
-	coeff->sigma_a = make_float3(0.0f, 0.0f, 0.0f);
 	coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+	coeff->sigma_t = (sd->runtime_flag & SD_RUNTIME_EXTINCTION)? sd->closure_transparent_extinction:
+	                                             make_float3(0.0f, 0.0f, 0.0f);
 	coeff->emission = (sd->runtime_flag & SD_RUNTIME_EMISSION)? sd->closure_emission_background:
 	                                            make_float3(0.0f, 0.0f, 0.0f);
 
-	for(int i = 0; i < sd->num_closure; i++) {
-		const ShaderClosure *sc = &sd->closure[i];
+	if(sd->runtime_flag & SD_RUNTIME_SCATTER) {
+		if(state->volume_bounce < kernel_data.integrator.max_volume_bounce) {
+			for(int i = 0; i < sd->num_closure; i++) {
+				const ShaderClosure *sc = &sd->closure[i];
 
-		if(sc->type == CLOSURE_VOLUME_ABSORPTION_ID)
-			coeff->sigma_a += sc->weight;
-		else if(CLOSURE_IS_VOLUME(sc->type))
-			coeff->sigma_s += sc->weight;
-	}
-
-	/* when at the max number of bounces, treat scattering as absorption */
-	if (sd->runtime_flag & SD_RUNTIME_SCATTER) {
-		if(state->volume_bounce >= kernel_data.integrator.max_volume_bounce) {
-			coeff->sigma_a += coeff->sigma_s;
-			coeff->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+				if(CLOSURE_IS_VOLUME(sc->type))
+					coeff->sigma_s += sc->weight;
+			}
+		}
+		else {
+			/* When at the max number of bounces, clear scattering. */
 			sd->runtime_flag &= ~SD_RUNTIME_SCATTER;
-			sd->runtime_flag |= SD_RUNTIME_ABSORPTION;
 		}
 	}
 
@@ -356,8 +346,8 @@ ccl_device float3 kernel_volume_emission_integrate(VolumeShaderCoefficients *coe
 	 * todo: we should use an epsilon to avoid precision issues near zero sigma_t */
 	float3 emission = coeff->emission;
 
-	if(closure_flag & SD_RUNTIME_ABSORPTION) {
-		float3 sigma_t = coeff->sigma_a + coeff->sigma_s;
+	if(closure_flag & SD_RUNTIME_EXTINCTION) {
+		float3 sigma_t = coeff->sigma_t;
 
 		emission.x *= (sigma_t.x > 0.0f)? (1.0f - transmittance.x)/sigma_t.x: t;
 		emission.y *= (sigma_t.y > 0.0f)? (1.0f - transmittance.y)/sigma_t.y: t;
@@ -397,7 +387,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(
 	/* randomly scatter, and if we do t is shortened */
 	if(closure_flag & SD_RUNTIME_SCATTER) {
 		/* extinction coefficient */
-		float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+		float3 sigma_t = coeff.sigma_t;
 
 		/* pick random color channel, we use the Veach one-sample
 		 * model with balance heuristic for the channels */
@@ -449,22 +439,22 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(
 	}
 	else 
 #endif
-	if(closure_flag & SD_RUNTIME_ABSORPTION) {
+	if(closure_flag & SD_RUNTIME_EXTINCTION) {
 		/* absorption only, no sampling needed */
-		float3 transmittance = volume_color_transmittance(coeff.sigma_a, t);
+		float3 transmittance = volume_color_transmittance(coeff.sigma_t, t);
 		new_tp = *throughput * transmittance;
 	}
 
 	/* integrate emission attenuated by extinction */
 	if(L && (closure_flag & SD_RUNTIME_EMISSION)) {
-		float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+		float3 sigma_t = coeff.sigma_t;
 		float3 transmittance = volume_color_transmittance(sigma_t, ray->t);
 		float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, ray->t);
 		path_radiance_accum_emission(L, *throughput, emission, state->bounce);
 	}
 
 	/* modify throughput */
-	if (closure_flag & (SD_RUNTIME_ABSORPTION | SD_RUNTIME_SCATTER)) {
+	if(closure_flag & SD_RUNTIME_EXTINCTION) {
 		*throughput = new_tp;
 
 		/* prepare to scatter to new direction */
@@ -534,10 +524,10 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 
 			/* distance sampling */
 #ifdef __VOLUME_SCATTER__
-			if ((closure_flag & SD_RUNTIME_SCATTER) || (has_scatter && (closure_flag & SD_RUNTIME_ABSORPTION))) {
+			if((closure_flag & SD_RUNTIME_SCATTER) || (has_scatter && (closure_flag & SD_RUNTIME_EXTINCTION))) {
 				has_scatter = true;
 
-				float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+				float3 sigma_t = coeff.sigma_t;
 				float3 sigma_s = coeff.sigma_s;
 
 				/* compute transmittance over full step */
@@ -571,11 +561,9 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 			}
 			else 
 #endif
-				if (closure_flag & SD_RUNTIME_ABSORPTION) {
+			if(closure_flag & SD_RUNTIME_EXTINCTION) {
 				/* absorption only, no sampling needed */
-				float3 sigma_a = coeff.sigma_a;
-
-				transmittance = volume_color_transmittance(sigma_a, dt);
+				transmittance = volume_color_transmittance(coeff.sigma_t, dt);
 				new_tp = tp * transmittance;
 			}
 
@@ -586,7 +574,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 			}
 
 			/* modify throughput */
-			if (closure_flag & (SD_RUNTIME_ABSORPTION | SD_RUNTIME_SCATTER)) {
+			if(closure_flag & SD_RUNTIME_EXTINCTION) {
 				tp = new_tp;
 
 				/* stop if nearly all light blocked */
@@ -762,7 +750,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 		sd->ray_length = t + random_jitter_offset;
 		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
 			int closure_flag = sd->runtime_flag;
-			float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+			float3 sigma_t = coeff.sigma_t;
 
 			/* compute accumulated transmittance */
 			float3 transmittance = volume_color_transmittance(sigma_t, dt);
