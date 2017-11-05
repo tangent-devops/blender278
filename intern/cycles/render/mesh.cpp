@@ -436,6 +436,8 @@ Mesh::Mesh()
 	face_offset = 0;
 	corner_offset = 0;
 
+	attr_map_offset = 0;
+
 	num_subd_verts = 0;
 
 	attributes.triangle_mesh = this;
@@ -1267,33 +1269,27 @@ void MeshManager::update_svm_attributes(Device *device, DeviceScene *dscene, Sce
 	 * attribute, based on a unique shader attribute id. */
 
 	/* compute array stride */
-	int attr_map_stride = 0;
+	int attr_map_size = 0;
 
-	for(size_t i = 0; i < scene->meshes.size(); i++)
-		attr_map_stride = max(attr_map_stride, (mesh_attributes[i].size() + 1)*ATTR_PRIM_TYPES);
+	for(size_t i = 0; i < scene->meshes.size(); i++) {
+		Mesh *mesh = scene->meshes[i];
+		mesh->attr_map_offset = attr_map_size;
+		attr_map_size += (mesh_attributes[i].size() + 1)*ATTR_PRIM_TYPES;
+	}
 
-	if(attr_map_stride == 0)
+	if(attr_map_size == 0)
 		return;
 
 	/* create attribute map */
-	uint4 *attr_map = dscene->attributes_map.resize(attr_map_stride*scene->objects.size());
+	uint4 *attr_map = dscene->attributes_map.resize(attr_map_size*scene->meshes.size());
 	memset(attr_map, 0, dscene->attributes_map.size()*sizeof(uint));
 
-	for(size_t i = 0; i < scene->objects.size(); i++) {
-		Object *object = scene->objects[i];
-		Mesh *mesh = object->mesh;
-
-		/* find mesh attributes */
-		size_t j;
-
-		for(j = 0; j < scene->meshes.size(); j++)
-			if(scene->meshes[j] == mesh)
-				break;
-
-		AttributeRequestSet& attributes = mesh_attributes[j];
+	for(size_t i = 0; i < scene->meshes.size(); i++) {
+		Mesh *mesh = scene->meshes[i];
+		AttributeRequestSet& attributes = mesh_attributes[i];
 
 		/* set object attributes */
-		int index = i*attr_map_stride;
+		int index = mesh->attr_map_offset;
 
 		foreach(AttributeRequest& req, attributes.requests) {
 			uint id;
@@ -1367,7 +1363,6 @@ void MeshManager::update_svm_attributes(Device *device, DeviceScene *dscene, Sce
 	}
 
 	/* copy to device */
-	dscene->data.bvh.attributes_map_stride = attr_map_stride;
 	device->tex_alloc("__attributes_map", dscene->attributes_map);
 }
 
@@ -1641,6 +1636,12 @@ void MeshManager::device_update_attributes(Device *device, DeviceScene *dscene, 
 		dscene->attributes_uchar4.copy(&attr_uchar4[0], attr_uchar4.size());
 		device->tex_alloc("__attributes_uchar4", dscene->attributes_uchar4);
 	}
+
+	if(progress.get_cancel()) return;
+
+	/* After mesh attributes and patch tables have been copied to device memory,
+	 * we need to update offsets in the objects. */
+	scene->object_manager->device_update_mesh_offsets(device, dscene, scene);
 }
 
 void MeshManager::mesh_calc_offset(Scene *scene)
@@ -2147,10 +2148,6 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 		device_update_mesh(device, dscene, scene, true, progress);
 	}
 	if(progress.get_cancel()) return;
-
-	/* after mesh data has been copied to device memory we need to update
-	 * offsets for patch tables as this can't be known before hand */
-	scene->object_manager->device_update_patch_map_offsets(device, dscene, scene);
 
 	device_update_attributes(device, dscene, scene, progress);
 	if(progress.get_cancel()) return;

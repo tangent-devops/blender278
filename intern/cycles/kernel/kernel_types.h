@@ -1289,17 +1289,16 @@ static_assert_align(KernelIntegrator, 16);
 typedef struct KernelBVH {
 	/* root node */
 	int root;
-	int attributes_map_stride;
 	int have_motion;
 	int have_curves;
 	int have_instancing;
 	int use_qbvh;
 	int use_bvh_steps;
-	int pad1;
 #ifdef __EMBREE__
 	RTCScene scene;
-	int pad2, pad3;
-#endif
+#else /* __EMBREE__ */
+	int pad1, pad2;
+#endif /* __EMBREE__ */
 } KernelBVH;
 static_assert_align(KernelBVH, 16);
 
