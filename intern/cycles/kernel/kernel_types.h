@@ -226,6 +226,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef __NO_SHADOW_TRICKS__
 #undef __SHADOW_TRICKS__
 #endif
+#ifdef __NO_DENOISING__
+#  undef __DENOISING_FEATURES__
+#endif
 
 /* Random Numbers */
 
@@ -307,32 +310,33 @@ enum SamplingPattern {
 /* these flags values correspond to raytypes in osl.cpp, so keep them in sync! */
 
 enum PathRayFlag {
-	PATH_RAY_CAMERA = 1,
-	PATH_RAY_REFLECT = 2,
-	PATH_RAY_TRANSMIT = 4,
-	PATH_RAY_DIFFUSE = 8,
-	PATH_RAY_GLOSSY = 16,
-	PATH_RAY_SINGULAR = 32,
-	PATH_RAY_TRANSPARENT = 64,
+	PATH_RAY_CAMERA              = (1 << 0),
+	PATH_RAY_REFLECT             = (1 << 1),
+	PATH_RAY_TRANSMIT            = (1 << 2),
+	PATH_RAY_DIFFUSE             = (1 << 3),
+	PATH_RAY_GLOSSY              = (1 << 4),
+	PATH_RAY_SINGULAR            = (1 << 5),
+	PATH_RAY_TRANSPARENT         = (1 << 6),
 
-	PATH_RAY_SHADOW_OPAQUE = 128,
-	PATH_RAY_SHADOW_TRANSPARENT = 256,
-	PATH_RAY_SHADOW = (PATH_RAY_SHADOW_OPAQUE | PATH_RAY_SHADOW_TRANSPARENT),
+	PATH_RAY_SHADOW_OPAQUE       = (1 << 7),
+	PATH_RAY_SHADOW_TRANSPARENT  = (1 << 8),
+	PATH_RAY_AO                  = (1 << 9),
+	PATH_RAY_SHADOW = (PATH_RAY_SHADOW_OPAQUE|PATH_RAY_SHADOW_TRANSPARENT|PATH_RAY_AO),
 
-	PATH_RAY_CURVE = 512, /* visibility flag to define curve segments */
-	PATH_RAY_VOLUME_SCATTER = 1024, /* volume scattering */
-	PATH_RAY_AO = 2048,
+	PATH_RAY_CURVE               = (1 << 10), /* visibility flag to define curve segments */
+	PATH_RAY_VOLUME_SCATTER      = (1 << 11), /* volume scattering */
 
 	/* Special flag to tag unaligned BVH nodes. */
-	PATH_RAY_NODE_UNALIGNED = 4096,
+	PATH_RAY_NODE_UNALIGNED = (1 << 12),
 
-	PATH_RAY_ALL_VISIBILITY = (1|2|4|8|16|32|64|128|256|512|1024|2048|4096),
+	PATH_RAY_ALL_VISIBILITY = ((1 << 13)-1),
 
-	PATH_RAY_MIS_SKIP = 8192,
-	PATH_RAY_DIFFUSE_ANCESTOR = 16384,
-	PATH_RAY_SINGLE_PASS_DONE = 32768,
-	PATH_RAY_SHADOW_CATCHER_ONLY = 65536,
-	PATH_RAY_SHADOW_CATCHER = 131072,
+	PATH_RAY_MIS_SKIP            = (1 << 14),
+	PATH_RAY_DIFFUSE_ANCESTOR    = (1 << 15),
+	PATH_RAY_SINGLE_PASS_DONE    = (1 << 16),
+	PATH_RAY_SHADOW_CATCHER      = (1 << 17),
+	PATH_RAY_SHADOW_CATCHER_ONLY = (1 << 18),
+	PATH_RAY_STORE_SHADOW_INFO   = (1 << 19),
 };
 
 /* Closure Label */
@@ -513,6 +517,12 @@ typedef ccl_addr_space struct PathRadiance {
 	/* Color of the background on which shadow is alpha-overed. */
 	float3 shadow_color;
 #endif
+	
+#ifdef __DENOISING_FEATURES__
+	float3 denoising_normal;
+	float3 denoising_albedo;
+	float denoising_depth;
+#endif  /* __DENOISING_FEATURES__ */
 } PathRadiance;
 
 typedef struct BsdfEval {
@@ -755,7 +765,8 @@ typedef struct AttributeDescriptor {
 #define SHADER_CLOSURE_BASE \
 	float3 weight; \
 	ClosureType type; \
-	float sample_weight \
+	float sample_weight; \
+	float3 N;\
 
 typedef ccl_addr_space struct ccl_align(16) ShaderClosure {
 	SHADER_CLOSURE_BASE;
@@ -988,6 +999,10 @@ typedef struct PathState {
 	int glossy_bounce;
 	int transmission_bounce;
 	int transparent_bounce;
+	
+#ifdef __DENOISING_FEATURES__
+	float denoising_feature_weight;
+#endif  /* __DENOISING_FEATURES__ */
 
 	/* multiple importance sampling */
 	float min_ray_pdf; /* smallest bounce pdf over entire path up to now */

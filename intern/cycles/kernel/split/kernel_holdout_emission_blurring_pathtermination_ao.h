@@ -123,7 +123,9 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 #ifdef __SHADOW_TRICKS__
 		if((sd->object_flag & SD_OBJECT_OBJECT_SHADOW_CATCHER)) {
 			if(state->flag & PATH_RAY_CAMERA) {
-				state->flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_SHADOW_CATCHER_ONLY);
+				state->flag |= (PATH_RAY_SHADOW_CATCHER |
+				                PATH_RAY_SHADOW_CATCHER_ONLY |
+				                PATH_RAY_STORE_SHADOW_INFO);
 				state->catcher_object = sd->object;
 				if(!kernel_data.background.transparent) {
 					PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
@@ -219,6 +221,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 					kernel_split_state.throughput[ray_index] = throughput/probability;
 				}
 			}
+			kernel_update_denoising_features(kg, sd, state, L);
 		}
 	}
 
