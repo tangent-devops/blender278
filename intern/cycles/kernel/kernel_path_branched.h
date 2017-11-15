@@ -453,20 +453,20 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg,
 				path_state_branch(&ps, j, num_samples);
 
 				VolumeIntegrateResult result = kernel_volume_integrate(
-					kg, &ps, &sd, &volume_ray, &L, &tp, rng, heterogeneous);
+					kg, &ps, &sd, &volume_ray, L, &tp, rng, heterogeneous);
 
 #ifdef __VOLUME_SCATTER__
 				if(result == VOLUME_PATH_SCATTERED) {
 					/* todo: support equiangular, MIS and all light sampling.
 					 * alternatively get decoupled ray marching working on the GPU */
-					kernel_path_volume_connect_light(kg, rng, &sd, &emission_sd, tp, &state, &L, light_linking, shadow_linking);
+					kernel_path_volume_connect_light(kg, rng, &sd, &emission_sd, tp, &state, L, light_linking, shadow_linking);
 
 					if(kernel_path_volume_bounce(kg,
 					                             rng,
 					                             &sd,
 					                             &tp,
 					                             &ps,
-					                             &L,
+					                             L,
 					                             &pray))
 					{
 						kernel_path_indirect(kg,
@@ -477,13 +477,13 @@ ccl_device float kernel_branched_path_integrate(KernelGlobals *kg,
 						                     tp,
 						                     num_samples,
 						                     &ps,
-						                     &L,
+						                     L,
 											 light_linking);
 
 						/* for render passes, sum and reset indirect light pass variables
 						 * for the next samples */
-						path_radiance_sum_indirect(&L);
-						path_radiance_reset_indirect(&L);
+						path_radiance_sum_indirect(L);
+						path_radiance_reset_indirect(L);
 					}
 				}
 #endif  /* __VOLUME_SCATTER__ */
