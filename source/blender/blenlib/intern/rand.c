@@ -248,6 +248,13 @@ void BLI_rng_shuffle_array(RNG *rng, void *data, unsigned int elem_size_i, unsig
 	free(temp);
 }
 
+#define LCGMULRIGHT(a1,b1,a2,b2,m)                 \
+do {                                           \
+    const uint64_t tmp = a1;                   \
+    a1 = (a1*a2)%m;                            \
+    b1 = (b1+tmp*b2)%m;                        \
+} while(0)
+
 /**
  * Simulate getting \a n random values.
  *
@@ -255,9 +262,17 @@ void BLI_rng_shuffle_array(RNG *rng, void *data, unsigned int elem_size_i, unsig
  */
 void BLI_rng_skip(RNG *rng, int n)
 {
-	while (n--) {
-		rng_step(rng);
-	}
+    uint64_t a = 1;
+    uint64_t b = 0;
+    uint64_t basea = MULTIPLIER % MASK;
+    uint64_t baseb = ADDEND % MASK;
+    while (n > 0) {
+        if ((n % 2) == 1)
+            LCGMULRIGHT(a,b,basea,baseb,MASK);
+        n >>= 1;
+        LCGMULRIGHT(basea,baseb,basea,baseb,MASK);
+    }
+    rng->X = (rng->X * a + b) % MASK;
 }
 
 /***/

@@ -699,18 +699,20 @@ static void exec_distribute_child(TaskPool * __restrict UNUSED(pool), void *task
 	ParticleTask *task = taskdata;
 	ParticleSystem *psys = task->ctx->sim.psys;
 	ChildParticle *cpa;
-	int p;
-	
+	int p, rng_skip;
+
 	/* RNG skipping at the beginning */
-	cpa = psys->child;
-	for (p = 0; p < task->begin; ++p, ++cpa) {
-		if (task->ctx->skip) /* simplification skip */
-			BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP * task->ctx->skip[p]);
-		
-		BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP);
+	cpa = psys->child + task->begin;
+
+	rng_skip = PSYS_RND_DIST_SKIP * task->begin;
+	if (task->ctx->skip) /* simplification skip */ {
+		for (p = 0; p < task->begin; ++p, ++cpa) {
+			rng_skip += PSYS_RND_DIST_SKIP * task->ctx->skip[p];
+		}
 	}
-		
-	for (; p < task->end; ++p, ++cpa) {
+	BLI_rng_skip(task->rng, rng_skip);
+
+	for (p = task->begin; p < task->end; ++p, ++cpa) {
 		if (task->ctx->skip) /* simplification skip */
 			BLI_rng_skip(task->rng, PSYS_RND_DIST_SKIP * task->ctx->skip[p]);
 		
