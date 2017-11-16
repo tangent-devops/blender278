@@ -31,7 +31,9 @@
  */
 
 #include <math.h>
-
+#ifdef __SSE2__
+#  include <emmintrin.h>
+#endif
 #include "BLI_noise.h"
 
 /* local */
@@ -283,6 +285,150 @@ static float grad(int hash_val, float x, float y, float z)
 	return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
+#ifdef __SSE2__
+
+/* SSE Perlin code stolen from https://developer.blender.org/T37963 */
+
+#define FMA(a, b, c) _mm_add_ps(_mm_mul_ps((a), (b)), (c))
+
+static inline __m128i quick_floor_sse(const __m128 *x)
+{
+	__m128i b = _mm_cvttps_epi32(*x);
+	__m128i isneg = _mm_castps_si128(_mm_cmplt_ps(*x, _mm_set1_ps(0.0f)));
+	return _mm_add_epi32(b, isneg); // unsaturated add 0xffffffff is the same as subtract -1
+}
+
+static inline __m128i hash_sse(const __m128i *kx, const __m128i *ky, const __m128i *kz)
+{
+	#define rot(x, k) _mm_or_si128(_mm_slli_epi32((x), (k)), _mm_srli_epi32((x), 32 - (k)))
+	#define xor_rot(a, b, c) do { a = _mm_xor_si128(a, b); a = _mm_sub_epi32(a, rot(b, c)); } while (0)
+	
+	unsigned int len = 3;
+	__m128i magic = _mm_set1_epi32(0xdeadbeef + (len << 2) + 13);
+	__m128i a = _mm_add_epi32(magic, *kx);
+	__m128i b = _mm_add_epi32(magic, *ky);
+	__m128i c = _mm_add_epi32(magic, *kz);
+	
+	xor_rot(c, b, 14);
+	xor_rot(a, c, 11);
+	xor_rot(b, a, 25);
+	xor_rot(c, b, 16);
+	xor_rot(a, c, 4);
+	xor_rot(b, a, 14);
+	xor_rot(c, b, 24);
+	
+	return c;
+	#undef rot
+	#undef xor_rot
+}
+static inline __m128 floorfrac_sse(const __m128 *x, __m128i *i)
+{
+	*i = quick_floor_sse(x);
+	return _mm_sub_ps(*x, _mm_cvtepi32_ps(*i));
+}
+
+static inline __m128 fade_sse(const __m128 *t)
+{
+	__m128 a = FMA(*t, _mm_set1_ps(6.0f), _mm_set1_ps(-15.0f));
+	__m128 b = FMA(*t, a, _mm_set1_ps(10.0f));
+	return _mm_mul_ps(_mm_mul_ps(*t, *t), _mm_mul_ps(*t, b));
+}
+
+static inline __m128 nerp_sse(const __m128 *t, const __m128 *a, const __m128 *b)
+{
+	__m128 x1 = _mm_mul_ps(_mm_sub_ps(_mm_set1_ps(1.0f), *t), *a);
+	return FMA(*t, *b, x1);
+}
+
+static inline __m128 grad_sse(const __m128i *hash, const __m128 *x, const __m128 *y, const __m128 *z)
+{
+	__m128i c1 = _mm_set1_epi32(1);
+	__m128i c2 = _mm_set1_epi32(2);
+	
+	__m128i h = _mm_and_si128(*hash, _mm_set1_epi32(15));          // h = hash & 15
+	
+	__m128i case_ux = _mm_cmplt_epi32(h, _mm_set1_epi32(8));       // 0xffffffff if h < 8 else 0
+	
+	__m128 ux = _mm_and_ps(_mm_castsi128_ps(case_ux), *x);         // u = case_ux & x
+	__m128 uy = _mm_andnot_ps(_mm_castsi128_ps(case_ux), *y);      //   + !case_ux & y
+	__m128 u = _mm_add_ps(ux, uy);                                 //  ...
+	
+	__m128i case_vy = _mm_cmplt_epi32(h, _mm_set1_epi32(4));       // 0xffffffff if h < 4 else 0
+	
+	__m128i case_h12_raw = _mm_cmpeq_epi32(h, _mm_set1_epi32(12)); // 0xffffffff if h == 12 else 0
+	__m128i case_h14_raw = _mm_cmpeq_epi32(h, _mm_set1_epi32(14)); // 0xffffffff if h == 14 else 0
+	
+	__m128i case_vxtmp = _mm_or_si128(case_h12_raw, case_h14_raw); // 0xffffffff if h == 12 or h == 14 else 0
+	__m128i case_vx = _mm_andnot_si128(case_vy, case_vxtmp);       // 0xffffffff if (h == 12 or h == 14) and not(h<4)
+	
+	__m128i case_vz = _mm_or_si128(case_vy, case_vx);              // 0xffffffff if case_vy or case_vx else 0
+	
+	__m128 vtx = _mm_and_ps(_mm_castsi128_ps(case_vx), *x);        // v = case_vx & x
+	__m128 vty = _mm_and_ps(_mm_castsi128_ps(case_vy), *y);        //   + case_vy & y
+	__m128 vtz = _mm_andnot_ps(_mm_castsi128_ps(case_vz), *z);     //   + !case_vz_inv & z
+	__m128 v = _mm_add_ps(vtz, _mm_add_ps(vtx, vty));              // ...
+	
+	__m128i case_uneg = _mm_slli_epi32(_mm_and_si128(h, c1), 31);  // 1<<31 if h&1 else 0
+	__m128 case_uneg_mask = _mm_castsi128_ps(case_uneg);           // -0.0 if h&1 else +0.0
+	__m128 ru = _mm_xor_ps(u, case_uneg_mask);                     // -u if h&1 else u (copy float sign)
+	
+	__m128i case_vneg = _mm_slli_epi32(_mm_and_si128(h, c2), 30);  // 2<<30 if h&2 else 0
+	__m128 case_vneg_mask = _mm_castsi128_ps(case_vneg);           // -0.0 if h&2 else +0.0
+	__m128 rv = _mm_xor_ps(v, case_vneg_mask);                     // -v if h&2 else v (copy float sign)
+	
+	__m128 r = _mm_add_ps(ru, rv);                                 // ((h&1) ? -u : u) + ((h&2) ? -v : v)
+	return r;
+}
+
+static inline __m128 scale3_sse(const __m128 *result)
+{
+	return _mm_mul_ps(_mm_set1_ps(0.9820f), *result);
+}
+
+static float newPerlin(float x, float y, float z)
+{
+	#define BROADCAST_I(vec, n) _mm_shuffle_epi32((vec), _MM_SHUFFLE((n), (n), (n), (n)))
+	 #define BROADCAST_F(vec, n) _mm_shuffle_ps((vec), (vec), _MM_SHUFFLE((n), (n), (n), (n)))
+	 __m128 xyz = _mm_setr_ps(x, y, z, 0.0f);
+	__m128i XYZ;
+	
+	__m128 fxyz = floorfrac_sse(&xyz, &XYZ);
+	
+	__m128 uvw = fade_sse(&fxyz);
+	__m128 u = BROADCAST_F(uvw, 0), v = BROADCAST_F(uvw, 1), w = BROADCAST_F(uvw, 2);
+	
+	__m128i ci[] = { _mm_setr_epi32(1, 1, 1, 1), _mm_setr_epi32(0, 0, 1, 1), _mm_setr_epi32(0, 1, 0, 1) };
+	__m128i vp[] = { BROADCAST_I(XYZ, 0), BROADCAST_I(XYZ, 1), BROADCAST_I(XYZ, 2) };
+	__m128i vd[] = { _mm_add_epi32(vp[0], ci[0]), _mm_add_epi32(vp[1], ci[1]), _mm_add_epi32(vp[2], ci[2]) };
+	
+	__m128i h1 = hash_sse(vp, vd + 1, vd + 2);         // hash directions 000, 001, 010, 011 (vp[0] is not a typo, because vp[0]+0 == vp[0])
+	__m128i h2 = hash_sse(vd, vd + 1, vd + 2);         // hash directions 100, 101, 110, 111
+	
+	__m128 cf[] = { _mm_setr_ps(1.0f, 1.0f, 1.0f, 1.0f), _mm_setr_ps(0.0f, 0.0f, 1.0f, 1.0f), _mm_setr_ps(0.0f, 1.0f, 0.0f, 1.0f) };
+	__m128 vf[] = { BROADCAST_F(fxyz, 0), BROADCAST_F(fxyz, 1),  BROADCAST_F(fxyz, 2) };
+	__m128 vfd[] = { _mm_sub_ps(vf[0], cf[0]), _mm_sub_ps(vf[1], cf[1]), _mm_sub_ps(vf[2], cf[2]) };
+	
+	__m128 g1 = grad_sse(&h1, vf, vfd + 1, vfd + 2);  // vf is not a typo (same as above)
+	__m128 g2 = grad_sse(&h2, vfd, vfd + 1, vfd + 2);
+	__m128 n1 = nerp_sse(&u, &g1, &g2);
+	
+	__m128 n1_half = _mm_movehl_ps(n1, n1);        // extract 2 floats to a separate vector
+	__m128 n2 = nerp_sse(&v, &n1, &n1_half);       // process nerp([a, b, _, _], [c, d, _, _]) -> [a', b', _, _]
+	
+	__m128 n2_second = BROADCAST_F(n2, 1);         // extract b to a separate vector
+	__m128 result = nerp_sse(&w, &n2, &n2_second); // process nerp([a', _, _, _], [b', _, _, _]) -> [a'', _, _, _]
+	
+	__m128 r = scale3_sse(&result);
+	
+	__m128 infmask = _mm_castsi128_ps(_mm_set1_epi32(0x7f800000));
+	__m128 rinfmask = _mm_cmpeq_ps(_mm_and_ps(r, infmask), infmask); // 0xffffffff if r is inf/-inf/nan else 0
+	__m128 rfinite = _mm_andnot_ps(rinfmask, r);   // 0 if r is inf/-inf/nan else r
+	return _mm_cvtss_f32(rfinite);
+	#undef BROADCAST_I
+	#undef BROADCAST_F
+}
+
+#else
 /* instead of adding another permutation array, just use hash table defined above */
 static float newPerlin(float x, float y, float z)
 {
@@ -306,6 +452,7 @@ static float newPerlin(float x, float y, float z)
 	                       lerp(u, grad(hash[AB + 1], x,     y - 1, z - 1),
 	                               grad(hash[BB + 1], x - 1, y - 1, z - 1))));
 }
+#endif
 
 /* for use with BLI_gNoise()/BLI_gTurbulence(), returns unsigned improved perlin noise */
 static float newPerlinU(float x, float y, float z)
