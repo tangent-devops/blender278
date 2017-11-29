@@ -254,7 +254,7 @@ void xml_read_node(XMLReader& reader, Node *node, pugi::xml_node xml_node)
 		reader.node_map[node->name] = node;
 }
 
-pugi::xml_node xml_write_node(Node *node, pugi::xml_node xml_root)
+pugi::xml_node xml_write_node(const Node *node, pugi::xml_node xml_root)
 {
 	pugi::xml_node xml_node = xml_root.append_child(node->type->name.c_str());
 

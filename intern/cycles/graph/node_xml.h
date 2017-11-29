@@ -29,7 +29,7 @@ struct XMLReader {
 };
 
 void xml_read_node(XMLReader& reader, Node *node, pugi::xml_node xml_node);
-pugi::xml_node xml_write_node(Node *node, pugi::xml_node xml_root);
+pugi::xml_node xml_write_node(const Node *node, pugi::xml_node xml_root);
 
 CCL_NAMESPACE_END
 

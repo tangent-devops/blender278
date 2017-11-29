@@ -128,6 +128,15 @@ static bool xml_read_float_array(vector<float>& value, pugi::xml_node node, cons
 	return false;
 }
 
+static void xml_write_float_array(const vector<float>& value, pugi::xml_node node, const char* name)
+{
+	std::string value_string;
+	foreach(float f, value) {
+		value_string += std::to_string(f) + " ";
+	}
+	node.append_attribute(name) = value_string.c_str();
+}
+
 static bool xml_read_float3(float3 *value, pugi::xml_node node, const char *name)
 {
 	vector<float> array;
@@ -188,6 +197,19 @@ static bool xml_equal_string(pugi::xml_node node, const char *name, const char *
 	return false;
 }
 
+static pugi::xml_node xml_write_transform(const Transform& tfm, pugi::xml_node node)
+{
+	pugi::xml_node tfm_node = node.append_child("Transform");
+	vector<float> matrix;
+	const float* tfm_f = (const float*)(&tfm);
+	for(int i = 0; i < 16; ++i) {
+		matrix.push_back(tfm_f[i]);
+	}
+	xml_write_float_array(matrix, tfm_node, "matrix");
+
+	return tfm_node;
+}
+
 /* Camera */
 
 static void xml_read_camera(XMLReadState& state, pugi::xml_node node)
@@ -206,6 +228,12 @@ static void xml_read_camera(XMLReadState& state, pugi::xml_node node)
 
 	cam->need_update = true;
 	cam->update();
+}
+
+static void xml_write_camera(Camera *cam, pugi::xml_node node)
+{
+	pugi::xml_node transform = 	xml_write_transform(cam->matrix, node);
+	xml_write_node(cam, transform);
 }
 
 /* Shader */
@@ -349,6 +377,29 @@ static void xml_read_shader_graph(XMLReadState& state, Shader *shader, pugi::xml
 	shader->tag_update(state.scene);
 }
 
+static void xml_write_shader_graph(const ShaderGraph* graph, pugi::xml_node node)
+{
+	/* Write the individual nodes first, then write the connections. */
+	foreach(ShaderNode *n, graph->nodes) {
+		/* Skip the output node, that one gets added by default. */
+		if(n->name != "output") {
+			xml_write_node(n, node);
+		}
+	}
+
+	foreach(ShaderNode *n, graph->nodes) {
+		foreach(ShaderInput *in, n->inputs) {
+			if(in->link && in->link->parent) {
+				pugi::xml_node connection = node.append_child("connect");
+				std::string in_string = std::string(n->name.c_str()) + std::string(" ") + std::string(in->name().c_str());
+				std::string out_string = std::string(in->link->parent->name.c_str()) + std::string(" ") + std::string(in->link->name().c_str());
+				connection.append_attribute("in") = in_string.c_str();
+				connection.append_attribute("out") = out_string.c_str();
+			}
+		}
+	}
+}
+
 static void xml_read_shader(XMLReadState& state, pugi::xml_node node)
 {
 	Shader *shader = new Shader();
@@ -356,6 +407,13 @@ static void xml_read_shader(XMLReadState& state, pugi::xml_node node)
 	state.scene->shaders.push_back(shader);
 }
 
+static void xml_write_shader(const Shader* shader, pugi::xml_node node)
+{
+	pugi::xml_node shader_node = xml_write_node(shader, node);
+	if(shader->graph) {
+		xml_write_shader_graph(shader->graph, shader_node);
+	}
+}
 /* Background */
 
 static void xml_read_background(XMLReadState& state, pugi::xml_node node)
@@ -366,6 +424,17 @@ static void xml_read_background(XMLReadState& state, pugi::xml_node node)
 	/* Background Shader */
 	Shader *shader = state.scene->default_background;
 	xml_read_shader_graph(state, shader, node);
+}
+
+static void xml_write_background(Background* background, pugi::xml_node node)
+{
+	/* Background Settings */
+	pugi::xml_node background_node = xml_write_node(background, node);
+
+	if(background->shader) {
+	/* Background Shader */
+		xml_write_shader(background->shader, background_node);
+	}
 }
 
 /* Mesh */
@@ -569,7 +638,6 @@ static void xml_read_transform(pugi::xml_node node, Transform& tfm)
 		tfm = tfm * transform_scale(scale);
 	}
 }
-
 /* State */
 
 static void xml_read_state(XMLReadState& state, pugi::xml_node node)
@@ -652,6 +720,30 @@ static void xml_read_scene(XMLReadState& state, pugi::xml_node scene_node)
 	}
 }
 
+static void xml_write_scene(Scene *scene, pugi::xml_node &node)
+{
+	xml_write_node(scene->film, node);
+	xml_write_node(scene->integrator, node);
+	xml_write_camera(scene->camera, node);
+	xml_write_background(scene->background, node);
+
+	foreach(Light *light, scene->lights) {
+		xml_write_node(light, node);
+	}
+
+	foreach(Mesh *mesh, scene->meshes) {
+		xml_write_node(mesh, node);
+	}
+
+	foreach(Object *object, scene->objects) {
+		xml_write_node(object, node);
+	}
+
+	foreach(Shader *shader, scene->shaders) {
+		xml_write_shader(shader, node);
+	}
+}
+
 /* Include */
 
 static void xml_read_include(XMLReadState& state, const string& src)
@@ -692,6 +784,17 @@ void xml_read_file(Scene *scene, const char *filepath)
 	xml_read_include(state, path_filename(filepath));
 
 	scene->params.bvh_type = SceneParams::BVH_STATIC;
+}
+
+
+void xml_write_file(Scene *scene, const char *filepath)
+{
+	pugi::xml_document doc;
+
+	pugi::xml_node cycles = doc.append_child("cycles");
+	xml_write_scene(scene, cycles);
+
+	doc.save_file(filepath);
 }
 
 CCL_NAMESPACE_END
