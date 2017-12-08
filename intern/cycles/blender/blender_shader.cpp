@@ -811,7 +811,7 @@ static ShaderNode *add_node(BlenderSync &sync,
 
                     bool is_float_bool, linear;
                     tex->slot = scene->image_manager->add_image(tex->filename, NULL, tex->generated_data,
-                                                                true, 0, is_float_bool, linear,
+                                                                true, 0, 0, is_float_bool, linear,
                                                                 INTERPOLATION_CLOSEST,
                                                                 EXTENSION_CLIP,
                                                                 true, false);

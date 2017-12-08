@@ -39,6 +39,9 @@
 #include "kernel/osl/osl_shader.h"
 #include "kernel/osl/osl_globals.h"
 
+#include "kernel/vdb/vdb_globals.h"
+#include "kernel/vdb/vdb_thread.h"
+
 #include "render/buffers.h"
 
 #include "util/util_debug.h"
@@ -234,6 +237,10 @@ public:
 #endif
 	OIIOGlobals oiio_globals;
 
+#ifdef WITH_OPENVDB
+	OpenVDBGlobals vdb_globals;
+#endif
+
 	bool use_split_kernel;
 
 	DeviceRequestedFeatures requested_features;
@@ -419,7 +426,16 @@ public:
 	{
 		return &oiio_globals;
 	}
-	
+
+	void *vdb_memory()
+	{
+#ifdef WITH_OPENVDB
+		return &vdb_globals;
+#else
+		return NULL;
+#endif
+	}
+
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::PATH_TRACE) {
@@ -735,6 +751,11 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
+
+#ifdef WITH_OPENVDB
+		VDBVolume::thread_init(&kg, &vdb_globals);
+#endif
+
 		if(kg.oiio && kg.oiio->tex_sys) {
 			kg.oiio_tdata = kg.oiio->tex_sys->get_perthread_info();
 		}
@@ -800,6 +821,10 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_free(&kg);
 #endif
+
+#ifdef WITH_OPENVDB
+		VDBVolume::thread_free(&kg);
+#endif
 	}
 
 	int get_split_task_count(DeviceTask& task)
@@ -848,6 +873,9 @@ protected:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
+#ifdef WITH_OPENVDB
+		VDBVolume::thread_init(&kg, &vdb_globals);
+#endif
 		if(kg.oiio && kg.oiio->tex_sys) {
 			kg.oiio_tdata = kg.oiio->tex_sys->get_perthread_info();
 		}
@@ -873,6 +901,9 @@ protected:
 		}
 #ifdef WITH_OSL
 		OSLShader::thread_free(kg);
+#endif
+#ifdef WITH_OPENVDB
+		VDBVolume::thread_free(kg);
 #endif
 	}
 

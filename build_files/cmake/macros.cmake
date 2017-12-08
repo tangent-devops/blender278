@@ -544,6 +544,9 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		if(WITH_CYCLES_OSL)
 			list(APPEND BLENDER_LINK_LIBS cycles_kernel_osl)
 		endif()
+		if(WITH_OPENVDB)
+			list(APPEND BLENDER_LINK_LIBS cycles_kernel_vdb)
+		endif()
 	endif()
 
 	# Sort libraries
@@ -720,6 +723,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	if(WITH_CYCLES_OSL)
 		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_osl")
+	endif()
+
+	if(WITH_OPENVDB)
+		list_insert_after(BLENDER_SORTED_LIBS "cycles_kernel" "cycles_kernel_vdb")
 	endif()
 
 	if(WITH_INTERNATIONAL)

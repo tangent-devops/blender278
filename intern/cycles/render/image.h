@@ -44,6 +44,7 @@ public:
                   boost::shared_ptr<uint8_t> generated_data,
 	              bool animated,
 	              float frame,
+				  int layer,
 	              bool& is_float,
 	              bool& is_linear,
 	              InterpolationType interpolation,
@@ -54,6 +55,7 @@ public:
 	void remove_image(const string& filename,
 	                  void *builtin_data,
                       boost::shared_ptr<uint8_t> generated_data,
+	                  int layer,
 	                  InterpolationType interpolation,
 	                  ExtensionType extension);
 	void tag_reload_image(const string& filename,
@@ -61,7 +63,7 @@ public:
                           boost::shared_ptr<uint8_t> generated_data,
 	                      InterpolationType interpolation,
 	                      ExtensionType extension);
-	ImageDataType get_image_metadata(const string& filename, void *builtin_data, boost::shared_ptr<uint8_t> generated_data, bool& is_linear);
+	ImageDataType get_image_metadata(const string& filename, int layer, void *builtin_data, boost::shared_ptr<uint8_t> generated_data, bool& is_linear);
 
 	void device_prepare_update(DeviceScene *dscene);
 	void device_update(Device *device,
@@ -112,6 +114,7 @@ public:
 		bool animated;
 		bool srgb;
 		float frame;
+		int layer;
 		InterpolationType interpolation;
 		ExtensionType extension;
 

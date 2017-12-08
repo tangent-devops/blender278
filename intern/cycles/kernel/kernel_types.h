@@ -89,6 +89,9 @@ CCL_NAMESPACE_BEGIN
 #  define __SUBSURFACE__
 #  define __CMJ__
 #  define __VOLUME__
+#  ifdef WITH_OPENVDB
+#    define __OPENVDB__
+#  endif
 #  define __VOLUME_SCATTER__
 #  define __SHADOW_RECORD_ALL__
 #  define __VOLUME_RECORD_ALL__

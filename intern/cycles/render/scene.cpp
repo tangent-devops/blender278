@@ -32,6 +32,7 @@
 #include "render/shader.h"
 #include "render/svm.h"
 #include "render/tables.h"
+#include "render/volume.h"
 
 #include "util/util_foreach.h"
 #include "util/util_guarded_allocator.h"
@@ -127,8 +128,7 @@ void Scene::free_memory(bool final)
 		delete particle_system_manager;
 		delete curve_system_manager;
 		delete image_manager;
-		delete bake_manager;
-	}
+		delete bake_manager;	}
 }
 
 void Scene::device_update(Device *device_, Progress& progress)

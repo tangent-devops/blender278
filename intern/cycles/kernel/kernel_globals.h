@@ -42,6 +42,11 @@ struct OSLShadingSystem;
 struct OIIOGlobals;
 #  endif
 
+#  ifdef WITH_OPENVDB
+struct OpenVDBGlobals;
+struct OpenVDBThreadData;
+#  endif
+
 struct Intersection;
 struct VolumeStep;
 
@@ -70,6 +75,12 @@ typedef struct KernelGlobals {
 #  ifdef __OIIO__
 	OIIOGlobals *oiio;
 	void* oiio_tdata;
+#  endif
+
+#  ifdef __OPENVDB__
+	/* OpenVDB */
+	OpenVDBGlobals *vdb;
+	OpenVDBThreadData *vdb_tdata;
 #  endif
 
 	/* **** Run-time data ****  */
