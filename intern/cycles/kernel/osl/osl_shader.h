@@ -55,7 +55,7 @@ public:
 	/* eval */
 	static void eval_surface(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx);
 	static void eval_background(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx);
-	static float3 eval_ao_env(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx);
+	static void eval_ao_env(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx);
 	static void eval_volume(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx);
 	static void eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx);
 

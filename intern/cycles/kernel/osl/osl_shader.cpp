@@ -294,7 +294,7 @@ void OSLShader::eval_background(KernelGlobals *kg, ShaderData *sd, PathState *st
 		flatten_background_closure_tree(sd, globals->Ci);
 }
 
-float3 OSLShader::eval_ao_env(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx)
+void OSLShader::eval_ao_env(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx)
 {
 	/* setup shader globals from shader data */
 	OSLThreadData *tdata = kg->osl_tdata;
@@ -312,8 +312,6 @@ float3 OSLShader::eval_ao_env(KernelGlobals *kg, ShaderData *sd, PathState *stat
 	/* return background color immediately */
 	if (globals->Ci)
 		flatten_background_closure_tree(sd, globals->Ci);
-
-	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
 /* Volume */

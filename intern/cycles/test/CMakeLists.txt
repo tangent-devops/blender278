@@ -37,6 +37,11 @@ if(WITH_CYCLES_OSL)
 		${LLVM_LIBRARIES}
 	)
 endif()
+if(WITH_OPENVDB)
+	list(ALLEND ALL_CYCLES_LIBRARIES)
+		cycles_kernel_vdb
+	)
+endif()
 if(WITH_IMAGE_OPENJPEG AND NOT WITH_SYSTEM_OPENJPEG)
 	list(APPEND ALL_CYCLES_LIBRARIES
 		extern_openjpeg

@@ -1078,7 +1078,8 @@ ccl_device float3 shader_eval_ao_env(KernelGlobals *kg, ShaderData *sd,
 
 #ifdef __OSL__
 	if (kg->osl) {
-		return OSLShader::eval_ao_env(kg, sd, state, path_flag, ctx);
+		OSLShader::eval_ao_env(kg, sd, state, path_flag, ctx);
+		return make_float3(1.0f, 1.0f, 1.0f);
 	}
 	else
 #endif

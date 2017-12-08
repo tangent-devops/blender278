@@ -35,6 +35,10 @@ if(WITH_CYCLES_OSL)
 	list(APPEND LIBRARIES cycles_kernel_osl)
 endif()
 
+if(WITH_OPENVDB)
+	list(APPEND LIBRARIES cycles_kernel_vdb)
+endif()
+
 if(CYCLES_STANDALONE_REPOSITORY)
 	if(WITH_CYCLES_LOGGING)
 		list(APPEND LIBRARIES

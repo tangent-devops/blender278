@@ -19,6 +19,7 @@
 #include "render/object.h"
 #include "render/scene.h"
 #include "render/camera.h"
+#include "render/volume.h"
 
 #include "blender/blender_sync.h"
 #include "blender/blender_session.h"
@@ -295,12 +296,50 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 	bool animated = false;
 
 	volume_data->manager = image_manager;
+
+#ifdef WITH_OPENVDB
+	BL::OpenVDBModifier b_vdb = object_vdb_modifier_find(b_ob);
+	if(b_vdb) {
+		int index = 0;
+		switch(std) {
+			case ATTR_STD_VOLUME_FLAME:
+				index = b_vdb.flame();
+				break;
+			case ATTR_STD_VOLUME_HEAT:
+				index = b_vdb.heat();
+				break;
+			case ATTR_STD_VOLUME_COLOR:
+				index = b_vdb.color1();
+				break;
+			case ATTR_STD_VOLUME_DENSITY:
+			default:
+				index = b_vdb.density();
+				break;
+		}
+
+		volume_data->slot = image_manager->add_image(
+													 b_vdb.filepath(),
+													 (void*)(b_vdb.front_axis() & (b_vdb.up_axis() << 4)),
+													 boost::shared_ptr<uint8_t>(),
+													 animated,
+													 frame,
+													 index - 1,
+													 is_float,
+													 is_linear,
+													 INTERPOLATION_LINEAR,
+													 EXTENSION_CLIP,
+													 true,
+													 false);
+	}
+	else
+#endif
 	volume_data->slot = image_manager->add_image(
 	        Attribute::standard_name(std),
 	        b_ob.ptr.data,
             boost::shared_ptr<uint8_t>(),
 	        animated,
 	        frame,
+			0,
 	        is_float,
 	        is_linear,
 	        INTERPOLATION_LINEAR,
