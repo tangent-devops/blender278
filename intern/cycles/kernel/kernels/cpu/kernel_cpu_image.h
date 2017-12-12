@@ -42,23 +42,15 @@ ccl_device float4 kernel_tex_image_interp_impl(KernelGlobals *kg, int tex, float
 
 ccl_device float4 kernel_tex_image_interp_3d_impl(KernelGlobals *kg, int tex, float x, float y, float z)
 {
-	const int index = kernel_tex_index(tex);
-	const int type = kernel_tex_type(tex);
 #ifdef __OPENVDB__
-	if(kg->vdb) {
-		if(type == IMAGE_DATA_TYPE_FLOAT) {
-			float r = VDBVolume::sample_scalar(kg->vdb, kg->vdb_tdata, index, x, y, z, 1);
-			if(r != 0.0f) {
-				r = 1.0f;
-			}
-			return make_float4(r, r, r, 1.0f);
-		} else if(type == IMAGE_DATA_TYPE_FLOAT4) {
-			float r, g, b;
-			VDBVolume::sample_vector(kg->vdb, kg->vdb_tdata, index, x, y, z, &r, &g, &b, 1);
-			return make_float4(r, g, b, 1.0f);
-		}
+	if(kg->vdb && tex < -1) {
+		float r, g, b;
+		VDBVolume::sample(kg->vdb_tdata, (-tex)-2, x, y, z, &r, &g, &b, 1);
+		return make_float4(r, g, b, 1.0f);
 	}
 #endif
+	const int index = kernel_tex_index(tex);
+	const int type = kernel_tex_type(tex);
 	switch(type) {
 		case IMAGE_DATA_TYPE_BYTE4:
 			return kg->texture_byte4_images[index].interp_3d(x, y, z);

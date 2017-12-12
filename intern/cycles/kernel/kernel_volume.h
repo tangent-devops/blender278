@@ -173,6 +173,38 @@ ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg,
 		*throughput *= volume_color_transmittance(sigma_t, ray->t);
 }
 
+ccl_device_inline bool kernel_volume_integrate_shadow_ray(
+														  KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
+														  float3 *tp, float t, float new_t, float random_jitter_offset,
+														  float3 *sum, float tp_eps, int i)
+{
+	float dt = new_t - t;
+
+	/* use random position inside this segment to sample shader */
+	if(new_t == ray->t)
+		random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+	float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+	float3 sigma_t;
+
+	/* compute attenuation over segment */
+	if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
+		/* Compute expf() only for every Nth step, to save some calculations
+		 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
+
+		*sum += (-sigma_t * (new_t - t));
+		if((i & 0x07) == 0) { /* ToDo: Other interval? */
+			*tp = *tp * make_float3(expf(sum->x), expf(sum->y), expf(sum->z));
+
+			/* stop if nearly all light is blocked */
+			if(tp->x < tp_eps && tp->y < tp_eps && tp->z < tp_eps)
+				return true;
+		}
+	}
+	
+	return false;
+}
+
 /* heterogeneous volume: integrate stepping through the volume until we
  * reach the end, get absorbed entirely, or run out of iterations */
 ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
