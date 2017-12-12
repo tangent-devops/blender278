@@ -37,6 +37,7 @@ set(SRC
 	svm.cpp
 	tables.cpp
 	tile.cpp
+	volume.cpp
 )
 
 set(SRC_HEADERS
@@ -65,6 +66,7 @@ set(SRC_HEADERS
 	svm.h
 	tables.h
 	tile.h
+	volume.h
 )
 
 include_directories(${INC})

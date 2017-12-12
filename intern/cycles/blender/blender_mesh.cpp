@@ -277,9 +277,27 @@ static void mikk_compute_tangents(const BL::Mesh& b_mesh,
 
 /* Create Volume Attribute */
 
+static inline float4 vdb_axis_to_float4(short axis, bool negate)
+{
+	float val = negate ? -1.0f : 1.0f;
+	float w = negate ? 1.0f : 0.0f;
+	switch(axis) {
+		case 0:
+			return make_float4(val, 0.0f, 0.0f, w);
+		case 1:
+			return make_float4(0.0f, val, 0.0f, w);
+		case 2:
+			return make_float4(0.0f, 0.0f, val, w);
+		default:
+			assert(0);
+			return make_float4(val, 0.0f, 0.0f, w);
+	}
+}
+
 static void create_mesh_volume_attribute(BL::Object& b_ob,
                                          Mesh *mesh,
                                          ImageManager *image_manager,
+                                         VolumeManager *volume_manager,
                                          AttributeStandard std,
                                          float frame)
 {
@@ -295,9 +313,8 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 	bool is_float, is_linear;
 	bool animated = false;
 
-	volume_data->manager = image_manager;
-
 #ifdef WITH_OPENVDB
+	bool has_vdb = false;
 	BL::OpenVDBModifier b_vdb = object_vdb_modifier_find(b_ob);
 	if(b_vdb) {
 		int index = 0;
@@ -312,34 +329,83 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 				index = b_vdb.color1();
 				break;
 			case ATTR_STD_VOLUME_DENSITY:
-			default:
 				index = b_vdb.density();
+				break;
+			case ATTR_STD_VOLUME_VELOCITY:
+				index = b_vdb.velocity1();
+				break;
+			default:
+				assert(0);
 				break;
 		}
 
-		volume_data->slot = image_manager->add_image(
-													 b_vdb.filepath(),
-													 (void*)(b_vdb.front_axis() & (b_vdb.up_axis() << 4)),
-													 boost::shared_ptr<uint8_t>(),
-													 animated,
-													 frame,
-													 index - 1,
-													 is_float,
-													 is_linear,
-													 INTERPOLATION_LINEAR,
-													 EXTENSION_CLIP,
-													 true,
-													 false);
+		/* Values from the VDB modifier are 1 based, indices in the OpenVDB API are 0 based. */
+		--index;
+
+		short front = b_vdb.front_axis();
+		short up = b_vdb.up_axis();
+
+		/* Look up the name of the grid. */
+		string grid_name;
+		if(string_endswith(b_vdb.filepath(), ".vdb")) {
+			openvdb::io::File file(b_vdb.filepath());
+			try {
+				file.open();
+				openvdb::MetaMap::Ptr meta_map = file.getMetadata();
+				if(meta_map && (*meta_map)["FFXVDBVersion"]) {
+					front = 1;
+					up = 2;
+				}
+				openvdb::GridPtrVecPtr grids = file.readAllGridMetadata();
+				if(index < grids->size()) {
+					openvdb::GridBase::Ptr grid = grids->at(index);
+					grid_name = grid->getName();
+				}
+			}
+			catch(const openvdb::Exception& e) {
+			}
+			if(file.isOpen()) {
+				file.close();
+			}
+		}
+		if(!grid_name.empty()) {
+			bool inv_z = up >= 3;
+			bool inv_y = front < 3;
+			up %= 3;
+			front %= 3;
+			short right = 3 - (up + front);
+			bool inv_x = !(inv_z == inv_y);
+
+			if (up < front) {
+				inv_x = !inv_x;
+			}
+			if (abs(up - front) == 2) {
+				inv_x = !inv_x;
+			}
+
+			/* Bake the axis selection from the modifier to a transformation matrix. */
+			Transform tfm = transform_identity();
+			tfm.x = vdb_axis_to_float4(right, inv_x);
+			tfm.y = vdb_axis_to_float4(front, inv_y);
+			tfm.z = vdb_axis_to_float4(up, inv_z);
+			volume_data->slot = -(volume_manager->add_volume(b_vdb.filepath(), grid_name, tfm) + 2);
+			volume_data->vol_manager = volume_manager;
+			volume_data->manager = NULL; 
+			has_vdb = true;
+		}
+		if(has_vdb) {
+			return;
+		}
 	}
-	else
 #endif
+	volume_data->vol_manager = NULL;
+	volume_data->manager = image_manager;
 	volume_data->slot = image_manager->add_image(
 	        Attribute::standard_name(std),
 	        b_ob.ptr.data,
             boost::shared_ptr<uint8_t>(),
 	        animated,
 	        frame,
-			0,
 	        is_float,
 	        is_linear,
 	        INTERPOLATION_LINEAR,
@@ -355,17 +421,17 @@ static void create_mesh_volume_attributes(Scene *scene,
 {
 	/* for smoke volume rendering */
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_DENSITY, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_COLOR, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_COLOR, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_FLAME))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_FLAME, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_FLAME, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_HEAT))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_HEAT, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_HEAT, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_VELOCITY))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_VELOCITY, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	else if (scene->need_motion() == Scene::MOTION_BLUR) {
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_VELOCITY, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	}
 }
 

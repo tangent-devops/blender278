@@ -270,7 +270,6 @@ ImageTextureNode::~ImageTextureNode()
 		image_manager->remove_image(filename.string(),
 		                            builtin_data,
                                     boost::shared_ptr<uint8_t>(),
-		                            0,
 		                            interpolation,
 		                            extension);
 	}
@@ -317,7 +316,6 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
                                         boost::shared_ptr<uint8_t>(),
 		                                animated,
 		                                0,
-										0,
 		                                is_float_bool,
 		                                is_linear,
 		                                interpolation,
@@ -384,7 +382,7 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), 0, NULL, boost::shared_ptr<uint8_t>(), is_linear);
+			type = image_manager->get_image_metadata(filename.string(), NULL, boost::shared_ptr<uint8_t>(), is_linear);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -394,7 +392,6 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 			                                builtin_data,
                                             boost::shared_ptr<uint8_t>(),
 			                                animated,
-			                                0,
 			                                0,
 			                                is_float_bool,
 			                                is_linear,
@@ -579,7 +576,6 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 		image_manager->remove_image(filename.string(),
 		                            builtin_data,
                                     boost::shared_ptr<uint8_t>(),
-		                            0,
 		                            interpolation,
 		                            EXTENSION_REPEAT);
 	}
@@ -624,7 +620,6 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
                                         boost::shared_ptr<uint8_t>(),
 		                                animated,
 		                                0,
-										0,
 		                                is_float_bool,
 		                                is_linear,
 		                                interpolation,
@@ -679,7 +674,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 	if(is_float == -1) {
 		if(builtin_data == NULL) {
 			ImageDataType type;
-			type = image_manager->get_image_metadata(filename.string(), 0, NULL, boost::shared_ptr<uint8_t>(), is_linear);
+			type = image_manager->get_image_metadata(filename.string(), NULL, boost::shared_ptr<uint8_t>(), is_linear);
 			if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 				is_float = 1;
 		}
@@ -690,7 +685,6 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
                                             boost::shared_ptr<uint8_t>(),
 			                                animated,
 			                                0,
-											0,
 			                                is_float_bool,
 			                                is_linear,
 			                                interpolation,
@@ -1512,7 +1506,6 @@ PointDensityTextureNode::~PointDensityTextureNode()
 		image_manager->remove_image(filename.string(),
 		                            builtin_data,
                                     boost::shared_ptr<uint8_t>(),
-		                            0,
 		                            interpolation,
 		                            EXTENSION_CLIP);
 	}
@@ -1550,7 +1543,7 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 		if(slot == -1) {
 			bool is_float, is_linear;
 			slot = image_manager->add_image(filename.string(), builtin_data, boost::shared_ptr<uint8_t>(),
-			                                false, 0, 0,
+			                                false, 0,
 			                                is_float, is_linear,
 			                                interpolation,
 			                                EXTENSION_CLIP,
@@ -1602,7 +1595,7 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 		if(slot == -1) {
 			bool is_float, is_linear;
 			slot = image_manager->add_image(filename.string(), builtin_data, boost::shared_ptr<uint8_t>(),
-			                                false, 0, 0,
+			                                false, 0,
 			                                is_float, is_linear,
 			                                interpolation,
 			                                EXTENSION_CLIP,

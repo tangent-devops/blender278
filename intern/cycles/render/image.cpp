@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-#ifdef WITH_OPENVDB
-#include <openvdb/openvdb.h>
-#include "kernel/vdb/vdb_globals.h"
-#endif
-
 #include "device/device.h"
 #include "render/image.h"
 #include "render/scene.h"
@@ -74,10 +69,6 @@ ImageManager::ImageManager(const DeviceInfo& info)
 	for(size_t type = 0; type < IMAGE_DATA_NUM_TYPES; type++) {
 		tex_num_images[type] = 0;
 	}
-
-#ifdef WITH_OPENVDB
-	openvdb::initialize();
-#endif
 }
 
 ImageManager::~ImageManager()
@@ -154,7 +145,6 @@ device_memory *ImageManager::image_memory(DeviceScene *dscene, int flat_slot)
 }
 
 ImageDataType ImageManager::get_image_metadata(const string& filename,
-											   int layer,
                                                void *builtin_data,
                                                boost::shared_ptr<uint8_t> generated_data,
                                                bool& is_linear)
@@ -169,33 +159,6 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
         channels = 4;
         return IMAGE_DATA_TYPE_FLOAT4;
     }
-
-#ifdef WITH_OPENVDB
-	if(string_endswith(filename, ".vdb")) {
-		ImageDataType type = IMAGE_DATA_TYPE_FLOAT;
-		openvdb::io::File file(filename);
-		try {
-			file.open();
-			openvdb::GridBase::Ptr baseGrid;
-
-			openvdb::GridPtrVecPtr grids = file.readAllGridMetadata();
-			if(layer < grids->size()) {
-				baseGrid = grids->at(layer);
-				if(baseGrid->isType<openvdb::Vec3SGrid>()) {
-					type = IMAGE_DATA_TYPE_FLOAT4;
-				}
-			}
-		}
-		catch(const openvdb::Exception& e) {
-		}
-
-		if(file.isOpen()) {
-			file.close();
-		}
-		is_linear = true;
-		return type;
-	}
-#endif
 
 	if(builtin_data) {
 		bool is_float = false;
@@ -371,14 +334,12 @@ static bool image_equals(ImageManager::Image *image,
                          const string& filename,
                          void *builtin_data,
 						 boost::shared_ptr<uint8_t> generated_data,
-						 int layer,
                          InterpolationType interpolation,
                          ExtensionType extension)
 {
 	return image->filename == filename &&
 		   image->builtin_data == builtin_data &&
 		   image->generated_data == generated_data &&
-		   image->layer == layer &&
 		   image->interpolation == interpolation &&
 		   image->extension == extension;
 }
@@ -388,7 +349,6 @@ int ImageManager::add_image(const string& filename,
                             boost::shared_ptr<uint8_t> generated_data,
                             bool animated,
                             float frame,
-							int layer,
                             bool& is_float,
                             bool& is_linear,
                             InterpolationType interpolation,
@@ -399,7 +359,7 @@ int ImageManager::add_image(const string& filename,
 	Image *img;
 	size_t slot;
 
-	ImageDataType type = get_image_metadata(filename, layer, builtin_data, generated_data, is_linear);
+	ImageDataType type = get_image_metadata(filename, builtin_data, generated_data, is_linear);
 
 	thread_scoped_lock device_lock(device_mutex);
 
@@ -428,7 +388,6 @@ int ImageManager::add_image(const string& filename,
 		                       filename,
 		                       builtin_data,
                                generated_data,
-							   layer,
 		                       interpolation,
 		                       extension))
 		{
@@ -486,7 +445,6 @@ int ImageManager::add_image(const string& filename,
 	img->need_load = true;
 	img->animated = animated;
 	img->frame = frame;
-	img->layer = layer;
 	img->interpolation = interpolation;
 	img->extension = extension;
 	img->users = 1;
@@ -523,7 +481,6 @@ void ImageManager::remove_image(int flat_slot)
 void ImageManager::remove_image(const string& filename,
                                 void *builtin_data,
                                 boost::shared_ptr<uint8_t> generated_data,
-								int layer,
                                 InterpolationType interpolation,
                                 ExtensionType extension)
 {
@@ -535,7 +492,6 @@ void ImageManager::remove_image(const string& filename,
 			                                      filename,
 			                                      builtin_data,
                                                   generated_data,
-												  layer,
 			                                      interpolation,
 			                                      extension))
 			{
@@ -562,7 +518,6 @@ void ImageManager::tag_reload_image(const string& filename,
 			                                      filename,
 			                                      builtin_data,
                                                   generated_data,
-                                                  0,
 			                                      interpolation,
 			                                      extension))
 			{
@@ -809,52 +764,6 @@ void ImageManager::device_load_image(Device *device,
 	if(!img) {
 		return;
 	}
-
-#ifdef WITH_OPENVDB
-	if(string_endswith(img->filename, ".vdb")) {
-		OpenVDBGlobals *vdb = (OpenVDBGlobals*)device->vdb_memory();
-		if(vdb) {
-			openvdb::io::File file(img->filename);
-			try {
-				file.open();
-				openvdb::GridBase::Ptr base_grid;
-				openvdb::GridPtrVecPtr grids = file.readAllGridMetadata();
-				if(img->layer < grids->size()) {
-					base_grid = file.readGrid(grids->at(img->layer)->getName());
-				}
-				if(base_grid) {
-					thread_scoped_lock lock(vdb->tex_paths_mutex);
-					if(type == IMAGE_DATA_TYPE_FLOAT) {
-						if (vdb->scalar_grids.size() <= slot) {
-							vdb->scalar_grids.resize(slot+1);
-						}
-						openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(base_grid);
-						vdb->scalar_grids[slot].init(grid);
-					}
-					else if(type == IMAGE_DATA_TYPE_FLOAT4) {
-						if (vdb->vector_grids.size() <= slot) {
-							vdb->vector_grids.resize(slot+1);
-						}
-						openvdb::Vec3SGrid::Ptr grid = openvdb::gridPtrCast<openvdb::Vec3SGrid>(base_grid);
-						vdb->vector_grids[slot].init(grid);
-					}
-					else {
-						assert(0);
-					}
-				}
-				img->need_load = false;
-			}
-			catch(const openvdb::Exception&) {
-				std::cerr << e.what();
-				assert(0);
-			}
-			if(file.isOpen()) {
-				file.close();
-			}
-			return;
-		}
-	} else
-#endif
 
 	if(oiio_texture_system && !img->builtin_data) {
 		/* Get or generate a mip mapped tile image file.
