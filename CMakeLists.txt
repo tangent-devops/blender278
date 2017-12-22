@@ -1308,6 +1308,14 @@ else()
 endif()
 
 #-----------------------------------------------------------------------------
+# Configure Embree
+
+if(WITH_CYCLES_EMBREE)
+	set(EMBREE_LIBRARIES "${CMAKE_SOURCE_DIR}/extern/embree/include")
+	set(EMBREE_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/embree/include")
+endif()
+
+#-----------------------------------------------------------------------------
 # Configure Python.
 
 if(WITH_PYTHON_MODULE)

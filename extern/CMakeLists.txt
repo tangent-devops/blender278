@@ -111,3 +111,8 @@ endif()
 if(WITH_SDL AND WITH_SDL_DYNLOAD)
 	add_subdirectory(sdlew)
 endif()
+
+if(WITH_CYCLES_EMBREE)
+    OPTION(EMBREE_STATIC_LIB "Build Embree as a static library." ON)
+	add_subdirectory(embree)
+endif()
