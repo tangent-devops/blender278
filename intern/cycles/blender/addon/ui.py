@@ -290,6 +290,7 @@ class CyclesRender_PT_geometry(CyclesButtonsPanel, Panel):
             sub.label("Volume Sampling:")
             sub.prop(cscene, "volume_step_size")
             sub.prop(cscene, "volume_max_steps")
+            sub.prop(scene, "volume_skip_empty_space")
 
             col = split.column()
 
@@ -305,6 +306,7 @@ class CyclesRender_PT_geometry(CyclesButtonsPanel, Panel):
             row = layout.row()
             row.prop(cscene, "volume_step_size")
             row.prop(cscene, "volume_max_steps")
+            row.prop(cscene, "volume_skip_empty_space")
 
         layout.prop(ccscene, "use_curves", text="Use Hair")
         col = layout.column()

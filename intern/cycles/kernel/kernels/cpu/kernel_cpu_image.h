@@ -42,6 +42,7 @@ ccl_device float4 kernel_tex_image_interp_impl(KernelGlobals *kg, int tex, float
 
 ccl_device float4 kernel_tex_image_interp_3d_impl(KernelGlobals *kg, int tex, float x, float y, float z)
 {
+	++kg->stats->num_volume_lookups;
 #ifdef __OPENVDB__
 	if(kg->vdb && tex < -1) {
 		float r, g, b;

@@ -1009,6 +1009,8 @@ ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
 	ccl_addr_space PathState *state, float randb, int path_flag, ShaderContext ctx, ccl_global float *buffer, int sample)
 {
+	++kg->stats->num_shader_eval_surface;
+
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
 	sd->randb_closure = randb;
@@ -1040,6 +1042,7 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
 ccl_device float3 shader_eval_background(KernelGlobals *kg, ShaderData *sd,
 	ccl_addr_space PathState *state, int path_flag, ShaderContext ctx, float *buffer, int sample)
 {
+	++kg->stats->num_shader_eval_background;
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
 	sd->randb_closure = 0.0f;
@@ -1228,6 +1231,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
                                           int path_flag,
                                           ShaderContext ctx)
 {
+	++kg->stats->num_shader_eval_volume;
 	/* reset closures once at the start, we will be accumulating the closures
 	 * for all volumes in the stack into a single array of closures */
 	sd->num_closure = 0;
@@ -1289,6 +1293,8 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 
 ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state, ShaderContext ctx)
 {
+	++kg->stats->num_shader_eval_displacement;
+	
 	sd->num_closure = 0;
 	sd->num_closure_extra = 0;
 	sd->randb_closure = 0.0f;

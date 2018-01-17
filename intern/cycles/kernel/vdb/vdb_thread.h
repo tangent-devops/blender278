@@ -41,8 +41,10 @@ public:
 	static bool sample(OpenVDBThreadData *vdb_thread, int vdb_index,
 	                          float x, float y, float z,
 	                          float *r, float *g, float *b, int sampling);
-	static bool intersect(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray, float *isect);
+	static bool set_ray(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray);
 	static bool march(OpenVDBThreadData *vdb_thread, int vdb_index, float *t0, float *t1);
+	static bool set_shadow_ray(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray);
+	static bool march_shadow(OpenVDBThreadData *vdb_thread, int vdb_index, float *t0, float *t1);
 };
 
 CCL_NAMESPACE_END

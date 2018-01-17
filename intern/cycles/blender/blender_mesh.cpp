@@ -350,8 +350,8 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 
 		/* Look up the name of the grid. */
 		string grid_name;
-		if(string_endswith(b_vdb.filepath(), ".vdb")) {
-			openvdb::io::File file(b_vdb.filepath());
+		if(string_endswith(b_vdb.abs_path(), ".vdb")) {
+			openvdb::io::File file(b_vdb.abs_path());
 			try {
 				file.open();
 				openvdb::MetaMap::Ptr meta_map = file.getMetadata();

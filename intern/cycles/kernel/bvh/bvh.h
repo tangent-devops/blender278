@@ -171,6 +171,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg,
                                           float extmax,
                                           uint shadow_linking)
 {
+	++kg->stats->num_rays;
 #ifdef __EMBREE__
 	if(kernel_data.bvh.scene) {
 		isect->t = ray.t;
@@ -228,6 +229,8 @@ ccl_device_intersect void scene_intersect_subsurface(KernelGlobals *kg,
                                                      int max_hits,
                                                      uint shadow_linking)
 {
+	++kg->stats->num_rays;
+	++kg->stats->num_sss_rays;
 #ifdef __EMBREE__
 	if(kernel_data.bvh.scene) {
 		CCLRay rtc_ray(ray, kg, PATH_RAY_ALL_VISIBILITY, CCLRay::RAY_SSS, shadow_linking);
@@ -264,6 +267,8 @@ ccl_device_intersect void scene_intersect_subsurface(KernelGlobals *kg,
 #ifdef __SHADOW_RECORD_ALL__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg, const Ray *ray, Intersection *isect, uint max_hits, uint *num_hits, uint shadow_linking)
 {
+	++kg->stats->num_rays;
+	++kg->stats->num_shadow_rays;
 #ifdef __EMBREE__
 	if(kernel_data.bvh.scene) {
 		CCLRay rtc_ray(*ray, kg, PATH_RAY_SHADOW, CCLRay::RAY_SHADOW_ALL, shadow_linking);
@@ -314,6 +319,7 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals *kg,
                                                  const uint visibility,
                                                  uint shadow_linking)
 {
+	++kg->stats->num_rays;
 #  ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 		return bvh_intersect_volume_motion(kg, ray, isect, visibility, shadow_linking);

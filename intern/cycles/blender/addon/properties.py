@@ -393,6 +393,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 min=2, max=65536
                 )
 
+        cls.volume_skip_empty_space = BoolProperty(
+                name="Skip Empty",
+                description="Allow the integrator to quickly skip empty space in OpenVDB Volumes",
+                default=True
+                )
+
         cls.dicing_rate = FloatProperty(
                 name="Dicing Rate",
                 description="Size of a micropolygon in pixels",

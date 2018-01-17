@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+
+#ifdef __OPENVDB__
+#  include "vdb/vdb_thread.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 /* Events for probalistic scattering */
@@ -124,6 +129,49 @@ ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, ccl_addr_space 
 	return false;
 }
 
+ccl_device_inline bool volume_stack_is_openvdb(KernelGlobals *kg, ccl_addr_space VolumeStack *stack)
+{
+#ifdef __OPENVDB__
+	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*SHADER_SIZE);
+		if(stack[i].density_att >= -1 && shader_flag & SD_SHADER_HETEROGENEOUS_VOLUME) {
+			return false;
+		}
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+ccl_device_inline float volume_stack_openvdb_start(KernelGlobals *kg, ccl_addr_space VolumeStack *stack, ShaderData *sd, Ray *ray, float max_t, bool shadow)
+{
+	float t_scale = 0.0f;
+#ifdef __OPENVDB__
+	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+		if(stack[i].density_att < -1) {
+			/* Converts the ray to Volume interior coordinates (from 0, 0, 0 to 1, 1, 1). */
+			const float3 tex_p = volume_normalized_position(kg, sd, ray->P);
+			const float3 tex_d = volume_normalized_direction(kg, sd, ray->D);
+			t_scale = len(tex_d);
+			Ray ray_tex;
+			ray_tex.P = tex_p;
+			ray_tex.t = max_t * t_scale;
+			t_scale = 1.0f/t_scale;
+			ray_tex.D = tex_d * t_scale;
+
+			if(shadow) {
+				VDBVolume::set_shadow_ray(kg->vdb_tdata, -(stack[i].density_att+2), &ray_tex);
+			}
+			else {
+				VDBVolume::set_ray(kg->vdb_tdata, -(stack[i].density_att+2), &ray_tex);
+			}
+		}
+	}
+#endif
+	return t_scale;
+}
+
 ccl_device int volume_stack_sampling_method(KernelGlobals *kg, VolumeStack *stack)
 {
 	if(kernel_data.integrator.num_all_lights == 0)
@@ -173,38 +221,6 @@ ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg,
 		*throughput *= volume_color_transmittance(sigma_t, ray->t);
 }
 
-ccl_device_inline bool kernel_volume_integrate_shadow_ray(
-														  KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
-														  float3 *tp, float t, float new_t, float random_jitter_offset,
-														  float3 *sum, float tp_eps, int i)
-{
-	float dt = new_t - t;
-
-	/* use random position inside this segment to sample shader */
-	if(new_t == ray->t)
-		random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
-
-	float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-	float3 sigma_t;
-
-	/* compute attenuation over segment */
-	if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
-		/* Compute expf() only for every Nth step, to save some calculations
-		 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
-
-		*sum += (-sigma_t * (new_t - t));
-		if((i & 0x07) == 0) { /* ToDo: Other interval? */
-			*tp = *tp * make_float3(expf(sum->x), expf(sum->y), expf(sum->z));
-
-			/* stop if nearly all light is blocked */
-			if(tp->x < tp_eps && tp->y < tp_eps && tp->z < tp_eps)
-				return true;
-		}
-	}
-	
-	return false;
-}
-
 /* heterogeneous volume: integrate stepping through the volume until we
  * reach the end, get absorbed entirely, or run out of iterations */
 ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
@@ -213,13 +229,29 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
                                                    ShaderData *sd,
                                                    float3 *throughput)
 {
-	float3 tp = *throughput;
-	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
-
 	/* prepare for stepping */
 	int max_steps = kernel_data.integrator.volume_max_steps;
 	float step = kernel_data.integrator.volume_step_size;
 	float random_jitter_offset = lcg_step_float_addrspace(&state->rng_congruential) * step;
+#ifdef __OPENVDB__
+	float t_near_grid = FLT_EPSILON, t_far_grid = ray->t;
+	bool is_vdb_stack = false;
+	float t_scale = 1.0f;
+	int far_step = -1;
+	if(kernel_data.integrator.volume_skip_empty_space && volume_stack_is_openvdb(kg, state->volume_stack)) {
+		is_vdb_stack = true;
+		for(int i = 0; state->volume_stack[i].shader != SHADER_NONE; i++) {
+			sd->object = state->volume_stack[i].object;
+		}
+		t_scale = volume_stack_openvdb_start(kg, state->volume_stack, sd, ray, min(ray->t, max_steps * step), true);
+		if(!isfinite(t_scale)) {
+			is_vdb_stack = false;
+		}
+	}
+#endif
+
+	float3 tp = *throughput;
+	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
 
 	/* compute extinction at the start */
 	float t = 0.0f;
@@ -227,6 +259,39 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
 	float3 sum = make_float3(0.0f, 0.0f, 0.0f);
 
 	for(int i = 0; i < max_steps; i++) {
+#ifdef __OPENVDB__
+		if(kernel_data.integrator.volume_skip_empty_space && is_vdb_stack && i > far_step) {
+			float t_near = ray->t;
+			float t_far = i * step;
+			bool has_voxel = false;
+			for(int j = 0; state->volume_stack[j].shader != SHADER_NONE; j++) {
+				if(VDBVolume::march_shadow(kg->vdb_tdata, -(state->volume_stack[j].density_att+2), &t_near_grid, &t_far_grid)) {
+					t_near = min(t_near, t_near_grid * t_scale);
+					t_far = max(t_far, t_far_grid * t_scale);
+					if(t_near >= t_far) {
+						break;
+					}
+					has_voxel = true;
+				}
+			}
+			if(!has_voxel) {
+				tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
+				break;
+			}
+			if(t_near < t_far) {
+				if(t_far > max_steps * step) {
+					break;
+				}
+				i = max(min(int(floorf(t_near / step)), max_steps), i);
+				far_step = int(floorf(t_far / step));
+				t = i * step;
+			}
+			else {
+				far_step = max_steps;
+			}
+		}
+#endif
+
 		/* advance to new position */
 		float new_t = min(ray->t, (i+1) * step);
 		float dt = new_t - t;
@@ -503,6 +568,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
     ccl_addr_space float3 *throughput,
     RNG *rng)
 {
+
 	float3 tp = *throughput;
 	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
 
@@ -510,6 +576,20 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	int max_steps = kernel_data.integrator.volume_max_steps;
 	float step_size = kernel_data.integrator.volume_step_size;
 	float random_jitter_offset = lcg_step_float_addrspace(&state->rng_congruential) * step_size;
+
+#ifdef __OPENVDB__
+	float t_near_grid = FLT_EPSILON, t_far_grid = ray->t;
+	bool is_vdb_stack = false;
+	float t_scale = 1.0f;
+	int far_step = -1;
+	if(kernel_data.integrator.volume_skip_empty_space && volume_stack_is_openvdb(kg, state->volume_stack)) {
+		is_vdb_stack = true;
+		for(int i = 0; state->volume_stack[i].shader != SHADER_NONE; i++) {
+			sd->object = state->volume_stack[i].object;
+		}
+		t_scale = volume_stack_openvdb_start(kg, state->volume_stack, sd, ray, min(ray->t, max_steps * step_size), false);
+	}
+#endif
 
 	/* compute coefficients at the start */
 	float t = 0.0f;
@@ -524,6 +604,37 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	bool has_scatter = false;
 
 	for(int i = 0; i < max_steps; i++) {
+#ifdef __OPENVDB__
+		if(kernel_data.integrator.volume_skip_empty_space && is_vdb_stack && i > far_step) {
+			float t_near = ray->t;
+			float t_far = i * step_size;
+			bool has_voxel = false;
+			for(int j = 0; state->volume_stack[j].shader != SHADER_NONE; j++) {
+				if(VDBVolume::march(kg->vdb_tdata, -(state->volume_stack[j].density_att+2), &t_near_grid, &t_far_grid)) {
+					t_near = min(t_near, t_near_grid * t_scale);
+					t_far = max(t_far, t_far_grid * t_scale);
+					if(t_near >= t_far) {
+						break;
+					}
+					has_voxel = true;
+				}
+			}
+			if(!has_voxel) {
+				break;
+			}
+			if(t_near < t_far) {
+				if(t_far > max_steps * step_size) {
+					break;
+				}
+				i = max(min(int(floorf(t_near / step_size)) - 1, max_steps), i);
+				far_step = int(floorf(t_far / step_size) + 1);
+				t = i * step_size;
+			}
+			else {
+				far_step = max_steps;
+			}
+		}
+#endif
 		/* advance to new position */
 		float new_t = min(ray->t, (i+1) * step_size);
 		float dt = new_t - t;
@@ -695,6 +806,19 @@ typedef struct VolumeSegment {
 ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *state,
 	Ray *ray, ShaderData *sd, VolumeSegment *segment, bool heterogeneous)
 {
+#ifdef __OPENVDB__
+	float t_near_grid = FLT_EPSILON, t_far_grid = ray->t;
+	bool is_vdb_stack = false;
+	float t_scale = 1.0f;
+	int far_step = -1;
+	if(kernel_data.integrator.volume_skip_empty_space && volume_stack_is_openvdb(kg, state->volume_stack)) {
+		is_vdb_stack = true;
+		for(int i = 0; state->volume_stack[i].shader != SHADER_NONE; i++) {
+			sd->object = state->volume_stack[i].object;
+		}
+		t_scale = volume_stack_openvdb_start(kg, state->volume_stack, sd, ray, min(ray->t, kernel_data.integrator.volume_max_steps * kernel_data.integrator.volume_step_size), false);
+	}
+#endif
 	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
 
 	/* prepare for volume stepping */
@@ -757,6 +881,37 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	VolumeStep *step = segment->steps;
 
 	for(int i = 0; i < max_steps; i++, step++) {
+#ifdef __OPENVDB__
+		if(kernel_data.integrator.volume_skip_empty_space && is_vdb_stack && i > far_step) {
+			float t_near = ray->t;
+			float t_far = i * step_size;
+			bool has_voxel = false;
+			for(int j = 0; state->volume_stack[j].shader != SHADER_NONE; j++) {
+				if(VDBVolume::march(kg->vdb_tdata, -(state->volume_stack[j].density_att+2), &t_near_grid, &t_far_grid)) {
+					t_near = min(t_near, t_near_grid * t_scale);
+					t_far = max(t_far, t_far_grid * t_scale);
+					if(t_near >= t_far) {
+						break;
+					}
+					has_voxel = true;
+				}
+			}
+			if(!has_voxel) {
+				break;
+			}
+			if(t_near < t_far) {
+				if(t_far > max_steps * step_size) {
+					break;
+				}
+				i = max(min(int(floorf(t_near / step_size)), max_steps), i);
+				far_step = int(floorf(t_far / step_size));
+				t = i * step_size;
+			}
+			else {
+				far_step = max_steps;
+			}
+		}
+#endif
 		/* advance to new position */
 		float new_t = min(ray->t, (i+1) * step_size);
 		float dt = new_t - t;
@@ -1274,6 +1429,15 @@ ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd
 		/* add to the end of the stack */
 		stack[i].shader = sd->shader;
 		stack[i].object = sd->object;
+#ifdef __OPENVDB__
+		AttributeDescriptor att = find_attribute(kg, sd, ATTR_STD_VOLUME_DENSITY);
+		if(att.offset != ATTR_STD_NOT_FOUND) {
+			stack[i].density_att = att.offset;
+		}
+		else {
+			stack[i].density_att = -1;
+		}
+#endif
 		stack[i+1].shader = SHADER_NONE;
 	}
 }

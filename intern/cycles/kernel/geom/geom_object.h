@@ -170,6 +170,18 @@ ccl_device_inline void object_inverse_position_transform(KernelGlobals *kg, cons
 #endif
 }
 
+/* Transform direction from world to object space */
+
+ccl_device_inline void object_inverse_direction_transform(KernelGlobals *kg, const ShaderData *sd, float3 *P)
+{
+#ifdef __OBJECT_MOTION__
+	*P = transform_direction_auto(&sd->ob_itfm, *P);
+#else
+	Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
+	*P = transform_direction(&tfm, *P);
+#endif
+}
+
 /* Transform normal from world to object space */
 
 ccl_device_inline void object_inverse_normal_transform(KernelGlobals *kg, const ShaderData *sd, float3 *N)

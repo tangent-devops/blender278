@@ -105,6 +105,9 @@ typedef struct KernelGlobals {
 
 	int2 global_size;
 	int2 global_id;
+
+	/* Statistics */
+	KernelStats *stats;
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */

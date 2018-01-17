@@ -62,6 +62,24 @@ ccl_device_inline float3 volume_normalized_position(KernelGlobals *kg,
 	return P;
 }
 
+ccl_device_inline float3 volume_normalized_direction(KernelGlobals *kg,
+													const ShaderData *sd,
+													float3 D)
+{
+	/* todo: optimize this so it's just a single matrix multiplication when
+	 * possible (not motion blur), or perhaps even just scale */
+	const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM);
+
+	object_inverse_direction_transform(kg, sd, &D);
+
+	if(desc.offset != ATTR_STD_NOT_FOUND) {
+		Transform tfm = primitive_attribute_matrix(kg, sd, desc);
+		D = transform_direction(&tfm, D);
+	}
+
+	return D;
+}
+
 ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd, const AttributeDescriptor desc, float *dx, float *dy)
 {
 	float3 P = volume_normalized_position(kg, sd, sd->P);

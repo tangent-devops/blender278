@@ -47,6 +47,7 @@ public:
 
 	int volume_max_steps;
 	float volume_step_size;
+	bool volume_skip_empty_space;
 
 	bool caustics_reflective;
 	bool caustics_refractive;

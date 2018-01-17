@@ -39,8 +39,10 @@
 #include "kernel/osl/osl_shader.h"
 #include "kernel/osl/osl_globals.h"
 
-#include "kernel/vdb/vdb_globals.h"
-#include "kernel/vdb/vdb_thread.h"
+#ifdef WITH_OPENVDB
+#  include "kernel/vdb/vdb_globals.h"
+#  include "kernel/vdb/vdb_thread.h"
+#endif
 
 #include "render/buffers.h"
 
@@ -241,6 +243,9 @@ public:
 	OpenVDBGlobals vdb_globals;
 #endif
 
+	KernelStats statistics;
+	thread_mutex statistics_mutex;
+
 	bool use_split_kernel;
 
 	DeviceRequestedFeatures requested_features;
@@ -254,6 +259,8 @@ public:
 #endif
 		oiio_globals.tex_sys = NULL;
 		kernel_globals.oiio = &oiio_globals;
+
+		::memset(&statistics, 0, sizeof(statistics));
 		
 		/* do now to avoid thread issues */
 		system_cpu_support_sse2();
@@ -323,6 +330,19 @@ public:
 	{
 		task_pool.stop();
 		kernel_globals.oiio = NULL;
+
+		std::cout << "Render Statistics:"
+		<< "\nTotal rays.............: " << statistics.num_rays
+		<< "\n * Shadow..............: " << statistics.num_shadow_rays
+		<< "\n * SSS.................: " << statistics.num_sss_rays
+		<< "\nTexture lookups:"
+		<< "\n * Volume..............: " << statistics.num_volume_lookups
+		<< "\nShader Evaluations:"
+		<< "\n * Surface.............: " << statistics.num_shader_eval_surface
+		<< "\n * Background..........: " << statistics.num_shader_eval_background
+		<< "\n * Volume..............: " << statistics.num_shader_eval_volume
+		<< "\n * Displacement........: " << statistics.num_shader_eval_displacement
+		<< std::endl;
 	}
 
 	virtual bool show_samples() const
@@ -880,6 +900,10 @@ protected:
 			kg.oiio_tdata = kg.oiio->tex_sys->get_perthread_info();
 		}
 
+
+		kg.stats = new KernelStats;
+		::memset(kg.stats, 0, sizeof(KernelStats));
+
 		return kg;
 	}
 
@@ -905,6 +929,18 @@ protected:
 #ifdef WITH_OPENVDB
 		VDBVolume::thread_free(kg);
 #endif
+
+		thread_scoped_lock(statistics_mutex);
+		statistics.num_rays += kg->stats->num_rays;
+		statistics.num_shadow_rays += kg->stats->num_shadow_rays;
+		statistics.num_volume_lookups += kg->stats->num_volume_lookups;
+		statistics.num_shader_eval_surface += kg->stats->num_shader_eval_surface;
+		statistics.num_shader_eval_background += kg->stats->num_shader_eval_background;
+		statistics.num_shader_eval_volume += kg->stats->num_shader_eval_volume;
+		statistics.num_shader_eval_displacement += kg->stats->num_shader_eval_displacement;
+
+		delete kg->stats;
+
 	}
 
 	virtual bool load_kernels(DeviceRequestedFeatures& requested_features_) {

@@ -965,6 +965,9 @@ typedef ccl_addr_space struct ShaderData {
 typedef struct VolumeStack {
 	int object;
 	int shader;
+#ifdef __OPENVDB__
+	int density_att;
+#endif
 } VolumeStack;
 #endif
 
@@ -1257,11 +1260,13 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
+	int volume_integrator;
+	int volume_skip_empty_space;
 
 	float light_inv_rr_threshold;
 
 	int start_sample;
-	int pad1, pad2, pad3;
+	int pad1;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
@@ -1330,6 +1335,18 @@ typedef ccl_addr_space struct DebugData {
 	int num_ray_bounces;
 } DebugData;
 #endif
+
+typedef ccl_addr_space struct KernelStats {
+	uint64_t num_volume_lookups;
+	uint64_t num_rays;
+	uint64_t num_shadow_rays;
+	uint64_t num_sss_rays;
+	uint64_t num_shader_eval_surface;
+	uint64_t num_shader_eval_background;
+	uint64_t num_shader_eval_volume;
+	uint64_t num_shader_eval_displacement;
+} KernelStats;
+
 
 /* Declarations required for split kernel */
 

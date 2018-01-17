@@ -38,13 +38,13 @@ public:
 	static OpenVDBGridThreadDataBase *create_from_texture(const OpenVDBTextureBase* tex);
 
 	virtual bool sample(float x, float y, float z, float *r, float *g, float *b, int sampling) = 0;
-	virtual bool intersect(const Ray *ray, float *isect) = 0;
-	virtual bool march(float *t0, float *t1) = 0;
+	virtual bool set_ray(const Ray *ray, bool shadow) = 0;
+	virtual bool march(float *t0, float *t1, bool shadow) = 0;
 };
 
 template <class T> class OpenVDBGridThreadData : public OpenVDBGridThreadDataBase {
 public:
-	OpenVDBGridThreadData(const OpenVDBTexture<T> *tex) : accessor(NULL), point_sampler(NULL), box_sampler(NULL), stag_point_sampler(NULL), stag_box_sampler(NULL), isector(NULL), tfm(tex->tfm), grid(tex->grid)
+	OpenVDBGridThreadData(const OpenVDBTexture<T> *tex) : accessor(NULL), point_sampler(NULL), box_sampler(NULL), stag_point_sampler(NULL), stag_box_sampler(NULL), primary_intersector(NULL), shadow_intersector(NULL), tfm(tex->tfm), grid(tex->grid), ray_t_scale(1.0f)
 	{
 		init(tex);
 	}
@@ -66,34 +66,39 @@ public:
 		return false;
 	}
 
-	virtual bool march(float *t0, float *t1)
+	virtual bool set_ray(const Ray *ray, bool shadow)
 	{
-		float vdb_t0(*t0), vdb_t1(*t1);
+		isector_t *intersector = shadow ? shadow_intersector : primary_intersector;
+		if(!intersector) {
+			return false;
+		}
 
-		if(isector && isector->march(vdb_t0, vdb_t1)) {
-			*t0 = isector->getWorldTime(vdb_t0);
-			*t1 = isector->getWorldTime(vdb_t1);
+		vdb_ray_t::Vec3Type P = tex_to_world(ray->P);
+		vdb_ray_t::Vec3Type D = tex_to_world_dir(ray->D);
+		ray_t_scale = D.length();
+		D /= ray_t_scale;
+		vdb_ray_t vdb_ray(P, D, FLT_EPSILON, ray->t * ray_t_scale);
+		ray_t_scale = 1.0f/ray_t_scale;
 
+		if(intersector->setWorldRay(vdb_ray)) {
 			return true;
 		}
 
 		return false;
 	}
 
-	virtual bool intersect(const Ray *ray, float *isect)
+	virtual bool march(float *t0, float *t1, bool shadow)
 	{
-		if(!isector) {
+		isector_t *intersector = shadow ? shadow_intersector : primary_intersector;
+		if(!intersector) {
 			return false;
 		}
 
-		vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
-		vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);
-		D.normalize();
+		float vdb_t0(*t0), vdb_t1(*t1);
 
-		vdb_ray_t vdb_ray(P, D, 1e-5f, ray->t);
-
-		if(isector->setWorldRay(vdb_ray)) {
-			*isect = static_cast<float>(vdb_ray.t1());
+		if(intersector->march(vdb_t0, vdb_t1)) {
+			*t0 = intersector->getWorldTime(vdb_t0) * ray_t_scale;
+			*t1 = intersector->getWorldTime(vdb_t1) * ray_t_scale;
 
 			return true;
 		}
@@ -102,6 +107,17 @@ public:
 	}
 
 private:
+
+	Vec3s tex_to_world(float3 p) {
+		p = transform_point(&tfm, p);
+		return Vec3s(p.x, p.y, p.z);
+	}
+
+	Vec3s tex_to_world_dir(float3 p) {
+		p = transform_direction(&tfm, p);
+		return Vec3s(p.x, p.y, p.z);
+	}
+
 	void init(const OpenVDBTexture<T> *tex)
 	{
 		accessor = new accessor_t(tex->grid->getConstAccessor());
@@ -110,7 +126,8 @@ private:
 		stag_point_sampler = new stag_point_sampler_t(*accessor, tex->grid->transform());
 		stag_box_sampler = new stag_box_sampler_t(*accessor, tex->grid->transform());
 		if(tex->intersector) {
-			isector = new isector_t(*tex->intersector);
+			shadow_intersector = new isector_t(*tex->intersector);
+			primary_intersector = new isector_t(*tex->intersector);
 		}
 	}
 
@@ -131,8 +148,11 @@ private:
 		if(stag_box_sampler) {
 			delete stag_box_sampler;
 		}
-		if(isector) {
-			delete isector;
+		if(primary_intersector) {
+			delete primary_intersector;
+		}
+		if(shadow_intersector) {
+			delete shadow_intersector;
 		}
 	}
 
@@ -141,17 +161,17 @@ private:
 	box_sampler_t *box_sampler;
 	stag_point_sampler_t *stag_point_sampler;
 	stag_box_sampler_t *stag_box_sampler;
-	isector_t *isector;
+	isector_t *primary_intersector, *shadow_intersector;
 	const Transform &tfm;
 	const typename T::Ptr grid;
+	float ray_t_scale;
 };
 
 template <>
 inline bool OpenVDBGridThreadData<FloatGrid>::sample(float x, float y, float z, float *r, float *g, float *b, int sampling)
 {
 	float3 pos = make_float3(x, y, z);
-	pos = transform_point(&tfm, pos);
-	Vec3d p(pos.x, pos.y, pos.z);
+	Vec3s p = tex_to_world(pos);
 
 	float value = 0.0f;
 	switch (sampling) {
@@ -174,7 +194,7 @@ inline bool OpenVDBGridThreadData<Vec3SGrid>::sample(float x, float y, float z, 
 
 	float3 pos = make_float3(x, y, z);
 	pos = transform_point(&tfm, pos);
-	Vec3d p(pos.x, pos.y, pos.z);
+	Vec3s p(pos.x, pos.y, pos.z);
 
 	if (staggered) {
 		switch (sampling) {
@@ -276,10 +296,10 @@ bool VDBVolume::sample(OpenVDBThreadData *vdb_thread, int vdb_index, float x, fl
 	}
 }
 
-bool VDBVolume::intersect(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray, float *isect)
+bool VDBVolume::set_ray(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray)
 {
 	if(vdb_index < vdb_thread->data.size() && vdb_thread->data[vdb_index]) {
-		return vdb_thread->data[vdb_index]->intersect(ray, isect);
+		return vdb_thread->data[vdb_index]->set_ray(ray, false);
 	}
 	return false;
 }
@@ -287,7 +307,23 @@ bool VDBVolume::intersect(OpenVDBThreadData *vdb_thread, int vdb_index, const Ra
 bool VDBVolume::march(OpenVDBThreadData *vdb_thread, int vdb_index, float *t0, float *t1)
 {
 	if(vdb_index < vdb_thread->data.size() && vdb_thread->data[vdb_index]) {
-		return vdb_thread->data[vdb_index]->march(t0, t1);
+		return vdb_thread->data[vdb_index]->march(t0, t1, false);
+	}
+	return false;
+}
+
+bool VDBVolume::set_shadow_ray(OpenVDBThreadData *vdb_thread, int vdb_index, const Ray *ray)
+{
+	if(vdb_index < vdb_thread->data.size() && vdb_thread->data[vdb_index]) {
+		return vdb_thread->data[vdb_index]->set_ray(ray, true);
+	}
+	return false;
+}
+
+bool VDBVolume::march_shadow(OpenVDBThreadData *vdb_thread, int vdb_index, float *t0, float *t1)
+{
+	if(vdb_index < vdb_thread->data.size() && vdb_thread->data[vdb_index]) {
+		return vdb_thread->data[vdb_index]->march(t0, t1, true);
 	}
 	return false;
 }
