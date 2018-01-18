@@ -72,6 +72,19 @@ ccl_device_inline Transform lamp_fetch_transform(KernelGlobals *kg, int lamp, bo
 	return tfm;
 }
 
+ccl_device_inline Transform lamp_fetch_shadowmap_transform(KernelGlobals *kg, int lamp)
+{
+	int offset = lamp*LIGHT_SIZE + 12;
+
+	Transform tfm;
+	tfm.x = kernel_tex_fetch(__light_data, offset + 0);
+	tfm.y = kernel_tex_fetch(__light_data, offset + 1);
+	tfm.z = kernel_tex_fetch(__light_data, offset + 2);
+	tfm.w = kernel_tex_fetch(__light_data, offset + 3);
+
+	return tfm;
+}
+
 /* Object to world space transformation for motion vectors */
 
 ccl_device_inline Transform object_fetch_vector_transform(KernelGlobals *kg, int object, enum ObjectVectorTransform type)

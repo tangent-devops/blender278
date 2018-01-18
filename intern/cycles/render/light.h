@@ -54,6 +54,10 @@ public:
 
 	int map_resolution;
 
+	Transform shadow_map_tfm;
+    int shadow_map_resolution;
+    int shadow_map_slot;
+
 	float spot_angle;
 	float spot_smooth;
 
@@ -63,6 +67,7 @@ public:
 	bool use_glossy;
 	bool use_transmission;
 	bool use_scatter;
+    bool use_shadow_map;
 
 	bool is_portal;
 	bool is_enabled;

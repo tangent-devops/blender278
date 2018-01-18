@@ -156,6 +156,22 @@ template<typename T> struct texture_image  {
 		return make_float4(f, f, f, 1.0f);
 	}
 
+	ccl_always_inline void write(float4 r, float4 &ro)
+	{
+        ro = r;
+	}
+
+
+    ccl_always_inline void write(float x, float y, float4 r)
+    {
+        T ro;
+        write(r,ro);
+
+        int xi = x * (float)width;
+        int yi = y * (float)height;
+        data[yi*width+xi] = ro;
+    }
+
 	ccl_always_inline int wrap_periodic(int x, int width)
 	{
 		x %= width;
@@ -566,6 +582,8 @@ typedef texture_image<half4> texture_image_half4;
 #define kernel_tex_image_interp(tex,x,y) kernel_tex_image_interp_impl(kg,tex,x,y)
 #define kernel_tex_image_interp_3d(tex, x, y, z) kernel_tex_image_interp_3d_impl(kg,tex,x,y,z)
 #define kernel_tex_image_interp_3d_ex(tex, x, y, z, interpolation) kernel_tex_image_interp_3d_ex_impl(kg,tex, x, y, z, interpolation)
+
+#define kernel_tex_image_write(tex,x,y,r) kernel_tex_image_write_impl(kg,tex,x,y,r)
 
 #define kernel_data (kg->__data)
 

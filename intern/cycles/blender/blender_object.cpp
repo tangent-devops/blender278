@@ -106,8 +106,10 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 			*use_portal = true;
 		return;
 	}
-	
+
 	BL::Lamp b_lamp(b_ob.data());
+
+    light->shadow_map_slot = -1;
 
 	/* type */
 	switch(b_lamp.type()) {
@@ -115,6 +117,9 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 			BL::PointLamp b_point_lamp(b_lamp);
 			light->size = b_point_lamp.shadow_soft_size();
 			light->type = LIGHT_POINT;
+
+            light->shadow_map_resolution = 0.0F;
+            light->shadow_map_tfm = transform_identity();
 			break;
 		}
 		case BL::Lamp::type_SPOT: {
@@ -123,17 +128,29 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 			light->type = LIGHT_SPOT;
 			light->spot_angle = b_spot_lamp.spot_size();
 			light->spot_smooth = b_spot_lamp.spot_blend();
+
+            light->shadow_map_resolution = 1024.0F;
+            Transform shadow_map_scale = transform_scale(0.5F,0.5F,0.5F) *
+                                         transform_translate(1.0F,1.0F,1.0F);
+
+            light->shadow_map_tfm = shadow_map_scale * transform_perspective(light->spot_angle, 1.0F, 10000.0F) * transform_inverse(tfm);
 			break;
 		}
 		case BL::Lamp::type_HEMI: {
 			light->type = LIGHT_DISTANT;
 			light->size = 0.0f;
+
+            light->shadow_map_resolution = 0.0F;
+            light->shadow_map_tfm = transform_identity();
 			break;
 		}
 		case BL::Lamp::type_SUN: {
 			BL::SunLamp b_sun_lamp(b_lamp);
 			light->size = b_sun_lamp.shadow_soft_size();
 			light->type = LIGHT_DISTANT;
+
+            light->shadow_map_resolution = 0.0F;
+            light->shadow_map_tfm = transform_identity();
 			break;
 		}
 		case BL::Lamp::type_AREA: {
@@ -147,6 +164,9 @@ void BlenderSync::sync_light(BL::Object& b_parent,
 			else
 				light->sizev = light->sizeu;
 			light->type = LIGHT_AREA;
+
+            light->shadow_map_resolution = 0.0F;
+            light->shadow_map_tfm = transform_identity();
 			break;
 		}
 	}

@@ -156,6 +156,9 @@ Light::Light()
     light_linking_prev = 0;
 
     shadow_linking_prev = 0;
+
+    shadow_map_slot = 0;
+    shadow_map_resolution = 0;
 }
 
 void Light::tag_update(Scene *scene)
@@ -660,6 +663,29 @@ void LightManager::device_update_points(Device *device,
         float light_linking = __uint_as_float(light->light_linking);
         float shadow_linking = __uint_as_float(light->shadow_linking);
 
+        // Create a shadowmap
+        if (light->shadow_map_resolution > 0) {
+            ImageManager::InternalImageHeader header;
+            header.width = light->shadow_map_resolution;
+            header.height = light->shadow_map_resolution;
+
+            uint data_size = sizeof(ImageManager::InternalImageHeader) + header.width * header.height * sizeof(float4);
+            boost::shared_ptr<uint8_t> generated_data = boost::shared_ptr<uint8_t>(new uint8_t[data_size]);
+
+            // Build cycles internal texture
+            ::memcpy(generated_data.get(), &header, sizeof(header));
+            ::memset(generated_data.get() + sizeof(header), 0, data_size);
+
+            bool is_float_bool, linear;
+            light->shadow_map_slot = scene->image_manager->add_image("sm", NULL, generated_data,
+                                                        true, 0, is_float_bool, linear,
+                                                        INTERPOLATION_CLOSEST,
+                                                        EXTENSION_CLIP,
+                                                        false);
+        } else {
+            light->shadow_map_slot = -1;
+        }
+
 		if(!light->cast_shadow)
 			shader_id &= ~SHADER_CAST_SHADOW;
 
@@ -780,13 +806,14 @@ void LightManager::device_update_points(Device *device,
 		}
 
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(max_bounces, 0.0f, 0.0f, 0.0f);
-        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, 0.0f, 0.0f);
+        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, __int_as_float(light->shadow_map_resolution), __int_as_float(light->shadow_map_slot));
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
+        Transform shadow_map_tfm = light->shadow_map_tfm;
 		memcpy(&light_data[light_index*LIGHT_SIZE + 6], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, sizeof(float4)*3);
-
+		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*4);
 
 		light_index++;
 	}
@@ -816,12 +843,14 @@ void LightManager::device_update_points(Device *device,
 		light_data[light_index*LIGHT_SIZE + 2] = make_float4(invarea, axisv.x, axisv.y, axisv.z);
 		light_data[light_index*LIGHT_SIZE + 3] = make_float4(-1, dir.x, dir.y, dir.z);
 		light_data[light_index*LIGHT_SIZE + 4] = make_float4(-1, 0.0f, 0.0f, 0.0f);
-        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, 0.0f, 0.0f);
+        light_data[light_index*LIGHT_SIZE + 5] = make_float4(light_linking, shadow_linking, __int_as_float(light->shadow_map_resolution), __int_as_float(light->shadow_map_slot));
 
 		Transform tfm = light->tfm;
 		Transform itfm = transform_inverse(tfm);
+        Transform shadow_map_tfm = light->shadow_map_tfm;
 		memcpy(&light_data[light_index*LIGHT_SIZE + 6], &tfm, sizeof(float4)*3);
 		memcpy(&light_data[light_index*LIGHT_SIZE + 9], &itfm, sizeof(float4)*3);
+		memcpy(&light_data[light_index*LIGHT_SIZE + 12], &shadow_map_tfm, sizeof(float4)*3);
 
 		light_index++;
 	}

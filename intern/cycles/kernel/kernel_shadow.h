@@ -41,6 +41,61 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
+ ccl_device_inline bool shadow_blocked_simple(KernelGlobals *kg, ShaderData *shadow_sd, LightSample *ls, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking, Transform *shadow_map_tfm, int shadow_map_resolution, int shadow_map_slot)
+{
+	*shadow = make_float3(1.0f, 1.0f, 1.0f);
+
+	if (ray->t == 0.0f)
+		return false;
+
+    if (shadow_map_slot >= 0) {
+        // Project into shadowmap space
+        float3 sm_coords = transform_perspective(shadow_map_tfm, ray->P);
+        //sm_coords = sm_coords / sm_coords.w;
+
+        if (sm_coords.x < 0.0F || sm_coords.x > 1.0F || sm_coords.y < 0.0F || sm_coords.y > 1.0F)
+            return false;
+
+        float4 sm_depth = svm_image_texture(kg, shadow_map_slot, sm_coords.x, sm_coords.y, false, false);
+
+        // If we have not computed depth before, then do it!
+        if (sm_depth.z == 0.0F) {
+
+            // Calculate a new ray from light
+            Ray sm_ray;
+            sm_ray.P = ls->P;
+            sm_ray.D = ray->P - ls->P;
+            sm_ray.D = normalize_len(sm_ray.D, &sm_ray.t);
+            sm_ray.t = FLT_MAX;
+            sm_ray.dP = differential3_zero();
+            sm_ray.dD = differential3_zero();
+
+            bool blocked;
+            Intersection isect;
+            blocked = scene_intersect(kg, sm_ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f, shadow_linking);
+
+            if (blocked) {
+                sm_depth.z = isect.t;
+            } else {
+                sm_depth.z = FLT_MAX;
+            }
+
+            // Use sm_depth
+            kernel_tex_image_write(shadow_map_slot,sm_coords.x,sm_coords.y,sm_depth);
+        }
+
+        return (sm_depth.z <= ray->t);
+
+    } else {
+        bool blocked;
+
+        Intersection isect;
+        blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f, shadow_linking);
+
+        return blocked;
+    }
+}
+
 ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, PathState *state, Ray *ray, float3 *shadow, uint shadow_linking)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
@@ -185,6 +240,38 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 #undef STACK_MAX_HITS
 
 #else
+
+ccl_device_noinline bool shadow_blocked_simple(KernelGlobals *kg,
+											   ShaderData *shadow_sd,
+											   ccl_addr_space PathState *state,
+											   ccl_addr_space Ray *ray_input,
+											   float3 *shadow,
+											   uint shadow_linking,
+                                               Transform shadow_map_tfm,
+                                               int shadow_map_resolution,
+                                               int shadow_map_slot)
+{
+	*shadow = make_float3(1.0f, 1.0f, 1.0f);
+
+#ifdef __SPLIT_KERNEL__
+	Ray private_ray = *ray_input;
+	Ray *ray = &private_ray;
+#else
+	Ray *ray = ray_input;
+#endif
+
+#ifdef __SPLIT_KERNEL__
+	Intersection *isect = &kg->isect_shadow[SD_THREAD];
+#else
+	Intersection isect_object;
+	Intersection *isect = &isect_object;
+#endif
+
+	if(ray_input->t == 0.0f)
+		return false;
+	bool blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f, shadow_linking);
+	return blocked;
+}
 
 /* Shadow function to compute how much light is blocked, GPU variation.
 *
