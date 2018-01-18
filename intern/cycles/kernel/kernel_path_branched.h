@@ -344,11 +344,11 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 				int all = kernel_data.integrator.sample_all_lights_direct;
 
                 uint light_linking = object_light_linking(kg, sd.object);
-                uint shadow_linking = object_shadow_linking(kg, sd.object);
+                //uint shadow_linking = object_shadow_linking(kg, sd.object);
 
 				kernel_branched_path_volume_connect_light(kg, rng, &sd,
 					&emission_sd, throughput, &state, &L, all,
-					&volume_ray, &volume_segment, light_linking, shadow_linking);
+					&volume_ray, &volume_segment);
 
 				/* indirect light sampling */
 				int num_samples = kernel_data.integrator.volume_samples;

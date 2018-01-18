@@ -121,8 +121,7 @@ bool kernel_path_volume_bounce(
 #ifdef __BRANCHED_PATH__
 ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, ShaderData *emission_sd, float3 throughput, PathState *state, PathRadiance *L,
-	bool sample_all_lights, Ray *ray, const VolumeSegment *segment,
-    uint light_linking, uint shadow_linking)
+	bool sample_all_lights, Ray *ray, const VolumeSegment *segment)
 {
 #ifdef __EMISSION__
 	if(!kernel_data.integrator.use_direct_light)
@@ -142,8 +141,9 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			if(UNLIKELY(light_select_reached_max_bounces(kg, i, state->bounce)))
 				continue;
 
-            if (!light_in_light_linking(kg, i, light_linking))
-                continue;
+			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, i*LIGHT_SIZE + 5);
+			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
+			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
 
 			int num_samples = light_select_num_samples(kg, i);
 			float num_samples_inv = 1.0f/(num_samples*kernel_data.integrator.num_all_lights);
@@ -190,6 +190,9 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 
 		/* mesh light sampling */
 		if(kernel_data.integrator.pdf_triangles != 0.0f) {
+			float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
+			uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
+			uint light_linking = __float_as_uint(light_and_shadow_linking.y);
 			int num_samples = kernel_data.integrator.mesh_light_samples;
 			float num_samples_inv = 1.0f/num_samples;
 
@@ -238,6 +241,9 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 		}
 	}
 	else {
+		float4 light_and_shadow_linking = kernel_tex_fetch(__light_data, 5); // what should i be now?
+		uint shadow_linking = __float_as_uint(light_and_shadow_linking.x);
+		uint light_linking = __float_as_uint(light_and_shadow_linking.y);
 		/* sample random position on random light */
 		float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
 		float light_u, light_v;
