@@ -69,10 +69,10 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 
 		ls->Ng = emission_sd->Ng;
 
-		/* no path flag, we're evaluating this for all closures. that's weak but
-		 * we'd have to do multiple evaluations otherwise */
+		/* No proper path flag, we're evaluating this for all closures. that's
+		 * weak but we'd have to do multiple evaluations otherwise. */
 		path_state_modify_bounce(state, true);
-		shader_eval_surface(kg, emission_sd, NULL, state, 0.0f, 0, 0, SHADER_CONTEXT_EMISSION, NULL, 0);
+		shader_eval_surface(kg, emission_sd, NULL, state, 0.0f, PATH_RAY_EMISSION, SHADER_CONTEXT_EMISSION, NULL, 0);
 		path_state_modify_bounce(state, false);
 
 		/* evaluate emissive closure */

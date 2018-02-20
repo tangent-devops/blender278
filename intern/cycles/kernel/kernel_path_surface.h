@@ -175,7 +175,7 @@ ccl_device bool kernel_branched_path_surface_bounce(
 	state->denoising_feature_weight *= sc->sample_weight / (sum_sample_weight * num_samples);
 
 	/* modify path state */
-	path_state_next(kg, state, label);
+	path_state_next(kg, state, sd, label);
 
 	/* setup ray */
 	ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);
@@ -317,7 +317,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
 		}
 		
 		/* update path state */
-		path_state_next(kg, state, label);
+		path_state_next(kg, state, sd, label);
 
 		/* setup ray */
 		ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);

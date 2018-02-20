@@ -206,6 +206,9 @@ void OSLShaderManager::shading_system_init()
 			"__unused__",
 			"__unused__",		/* PATH_RAY_SINGLE_PASS_DONE */
 			"volume_scatter",	/* PATH_RAY_VOLUME_SCATTER */
+			"__unused__",
+			"__unused__",
+			"__unused__",
 		};
 
 		const int nraytypes = sizeof(raytypes)/sizeof(raytypes[0]);

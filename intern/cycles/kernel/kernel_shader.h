@@ -997,10 +997,21 @@ ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 /* Surface Evaluation */
 
 ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd, RNG *rng,
-	ccl_addr_space PathState *state, float randb, int path_flag, int max_closure, ShaderContext ctx, ccl_global float *buffer, int sample)
+	ccl_addr_space PathState *state, float randb, int path_flag, ShaderContext ctx, ccl_global float *buffer, int sample)
 {
+	/* If path is being terminated, we are tracing a shadow ray or evaluating
+	 * emission, then we don't need to store closures. The emission and shadow
+	 * shader data also do not have a closure array to save GPU memory. */
+	int max_closures;
+	if(path_flag & (PATH_RAY_TERMINATE|PATH_RAY_SHADOW|PATH_RAY_EMISSION)) {
+		max_closures = 0;
+	}
+	else {
+		max_closures = MAX_CLOSURE;
+	}
+
 	sd->num_closure = 0;
-	sd->num_closure_left = max_closure;
+	sd->num_closure_left = max_closures;
 	sd->randb_closure = randb;
 
 #ifdef __OSL__
@@ -1207,11 +1218,10 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
                                           ccl_addr_space PathState *state,
                                           ccl_addr_space VolumeStack *stack,
                                           int path_flag,
-                                          int max_closure,
                                           ShaderContext ctx)
 {
 	/* motion blur for volumes */
-	if((kernel_data.cam.shuttertime != -1.0f) && sd->object != OBJECT_NONE) {
+	if ((kernel_data.cam.shuttertime != -1.0f) && sd->object != OBJECT_NONE) {
 		/* Calling find_attribute every time is probably excessive. This should be cached. */
 		AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_VOLUME_VELOCITY);
 		if (desc.offset != ATTR_STD_NOT_FOUND) {
@@ -1223,10 +1233,21 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 		}
 	}
 
+	/* If path is being terminated, we are tracing a shadow ray or evaluating
+	 * emission, then we don't need to store closures. The emission and shadow
+	 * shader data also do not have a closure array to save GPU memory. */
+	int max_closures;
+	if(path_flag & (PATH_RAY_TERMINATE|PATH_RAY_SHADOW|PATH_RAY_EMISSION)) {
+		max_closures = 0;
+	}
+	else {
+		max_closures = MAX_CLOSURE;
+	}
+
 	/* reset closures once at the start, we will be accumulating the closures
 	 * for all volumes in the stack into a single array of closures */
 	sd->num_closure = 0;
-	sd->num_closure_left = max_closure;
+	sd->num_closure_left = max_closures;
 	sd->runtime_flag = 0;
 	sd->shader_flag = 0;
 	sd->object_flag = 0;

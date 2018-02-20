@@ -617,7 +617,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 #ifdef __VOLUME__
 		if (!(sd.shader_flag & SD_SHADER_HAS_ONLY_VOLUME)) {
 #endif
-		shader_eval_surface(kg, &sd, rng, &state, 0.0f, state.flag, MAX_CLOSURE, SHADER_CONTEXT_MAIN, buffer, sample);
+		shader_eval_surface(kg, &sd, rng, &state, 0.0f, state.flag, SHADER_CONTEXT_MAIN, buffer, sample);
 		shader_merge_closures(&sd);
 
 #ifdef __SHADOW_TRICKS__
@@ -673,7 +673,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int 
 			/* path termination. this is a strange place to put the termination, it's
 			 * mainly due to the mixed in MIS that we use. gives too many unneeded
 			 * shader evaluations, only need emission if we are going to terminate */
-			float probability = path_state_terminate_probability(kg, &state, &sd, throughput);
+			float probability = path_state_terminate_probability(kg, &state, throughput);
 
 			if(probability == 0.0f) {
 				break;

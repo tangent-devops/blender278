@@ -336,7 +336,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		if (!(sd->shader_flag & SD_SHADER_HAS_ONLY_VOLUME)) {
 #endif
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, state, PRNG_BSDF);
-		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, MAX_CLOSURE, SHADER_CONTEXT_INDIRECT, NULL, 0);
+		shader_eval_surface(kg, sd, rng, state, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT, NULL, 0);
 #ifdef __BRANCHED_PATH__
 		shader_merge_closures(sd);
 #endif  /* __BRANCHED_PATH__ */
@@ -376,7 +376,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		float probability =
 		        path_state_terminate_probability(kg,
 		                                         state,
-												 sd,
 		                                         throughput*num_samples);
 
 		if(probability == 0.0f) {
@@ -845,7 +844,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 		if (!(sd.shader_flag & SD_SHADER_HAS_ONLY_VOLUME)) {
 #endif
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, &state, PRNG_BSDF);
-		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, MAX_CLOSURE, SHADER_CONTEXT_MAIN, buffer, sample);
+		shader_eval_surface(kg, &sd, rng, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN, buffer, sample);
 
 #ifdef __SHADOW_TRICKS__
 		if((sd.object_flag & SD_OBJECT_OBJECT_SHADOW_CATCHER)) {
@@ -910,7 +909,7 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 		/* path termination. this is a strange place to put the termination, it's
 		 * mainly due to the mixed in MIS that we use. gives too many unneeded
 		 * shader evaluations, only need emission if we are going to terminate */
-		float probability = path_state_terminate_probability(kg, &state, &sd, throughput);
+		float probability = path_state_terminate_probability(kg, &state, throughput);
 
 		if(probability == 0.0f) {
 			break;

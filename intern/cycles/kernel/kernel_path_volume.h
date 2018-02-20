@@ -103,7 +103,7 @@ bool kernel_path_volume_bounce(
 	state->min_ray_pdf = fminf(phase_pdf, state->min_ray_pdf);
 
 	/* update path state */
-	path_state_next(kg, state, label);
+	path_state_next(kg, state, sd, label);
 
 	/* setup ray */
 	ray->P = sd->P;
