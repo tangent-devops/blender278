@@ -252,6 +252,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             subsub.prop(cscene, "mesh_light_samples", text="Mesh Light")
 
             sub.prop(cscene, "subsurface_samples", text="Subsurface")
+            sub.prop(cscene, "volume_branch", text="Branched Volume")
             sub.prop(cscene, "volume_samples", text="Volume")
 
             col = layout.column(align=True)

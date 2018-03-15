@@ -1265,7 +1265,7 @@ typedef struct KernelIntegrator {
 	int subsurface_samples;
 	int sample_all_lights_direct;
 	int sample_all_lights_indirect;
-
+	
 	/* mis */
 	int use_lamp_mis;
 
@@ -1279,10 +1279,12 @@ typedef struct KernelIntegrator {
 	float volume_step_size;
 	int volume_samples;
 
+	int volume_branch;
+
 	float light_inv_rr_threshold;
 
 	int start_sample;
-	int pad1, pad2, pad3;
+	int pad1, pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

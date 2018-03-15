@@ -64,6 +64,7 @@ NODE_DEFINE(Integrator)
 	SOCKET_INT(mesh_light_samples, "Mesh Light Samples", 1);
 	SOCKET_INT(subsurface_samples, "Subsurface Samples", 1);
 	SOCKET_INT(volume_samples, "Volume Samples", 1);
+	SOCKET_BOOLEAN(volume_branch, "Branch volume paths", true);
 	SOCKET_INT(start_sample, "Start Sample", 0);
 
 	SOCKET_BOOLEAN(sample_all_lights_direct, "Sample All Lights Direct", true);
@@ -141,6 +142,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
 	kintegrator->volume_max_steps = volume_max_steps;
 	kintegrator->volume_step_size = volume_step_size;
+	kintegrator->volume_branch = volume_branch;
 
 	kintegrator->caustics_reflective = caustics_reflective;
 	kintegrator->caustics_refractive = caustics_refractive;
