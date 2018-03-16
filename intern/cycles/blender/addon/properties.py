@@ -263,6 +263,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 default=1,
                 )
 
+        cls.volume_branch = BoolProperty(
+                name="Volume Branching",
+                description="Allow brandched path tracing for volumes",
+                default=True,
+                )
+
         cls.sampling_pattern = EnumProperty(
                 name="Sampling Pattern",
                 description="Random sampling pattern used by the integrator",
