@@ -273,7 +273,7 @@ ccl_device_inline float path_state_rng_1D_for_decision(KernelGlobals *kg, RNG *r
 	 * however for some random numbers that will determine if we next bounce
 	 * is transparent we do need to increase the offset to avoid always making
 	 * the same decision */
-	int rng_offset = state->rng_offset + state->transparent_bounce*PRNG_BOUNCE_NUM;
+	int rng_offset = state->rng_offset + (state->volume_bounds_bounce + state->transparent_bounce)*PRNG_BOUNCE_NUM;
 	return path_rng_1D(kg, rng, state->sample, state->num_samples, rng_offset + dimension);
 }
 
@@ -289,7 +289,7 @@ ccl_device_inline float path_branched_rng_1D(KernelGlobals *kg, RNG *rng, const 
 
 ccl_device_inline float path_branched_rng_1D_for_decision(KernelGlobals *kg, RNG *rng, const ccl_addr_space PathState *state, int branch, int num_branches, int dimension)
 {
-	int rng_offset = state->rng_offset + state->transparent_bounce*PRNG_BOUNCE_NUM;
+	int rng_offset = state->rng_offset + (state->volume_bounds_bounce + state->transparent_bounce)*PRNG_BOUNCE_NUM;
 	return path_rng_1D(kg, rng, state->sample*num_branches + branch, state->num_samples*num_branches, rng_offset + dimension);
 }
 
