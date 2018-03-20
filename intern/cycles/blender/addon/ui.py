@@ -254,7 +254,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
             sub.prop(cscene, "subsurface_samples", text="Subsurface")
             sub.prop(cscene, "volume_branch")
             subsub = sub.row(align=True)
-            subsub.active = (cscene.volume_samples == True)
+            subsub.active = cscene.volume_branch
             subsub.prop(cscene, "volume_samples", text="Volume")
 
             col = layout.column(align=True)
