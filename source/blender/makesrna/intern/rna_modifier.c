@@ -5597,6 +5597,11 @@ static void rna_def_modifier_vertex_snap(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_deform_space_items);
 	RNA_def_property_ui_text(prop, "Deform Space", "Pull vertices in local or world space");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property( srna, "invert_weights", PROP_BOOLEAN, PROP_NONE );
+	RNA_def_property_boolean_sdna( prop, NULL, "flags", MOD_VSNAP_INVERT_WEIGHTS );
+	RNA_def_property_ui_text( prop, "Invert Weights", "If checked, invert the specified weight group" );
+	RNA_def_property_update( prop, 0, "rna_Modifier_update" );
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

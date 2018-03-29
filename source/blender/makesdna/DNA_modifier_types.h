@@ -1749,11 +1749,17 @@ typedef struct VertexSnapModifierData {
 	struct Object *target;	/* bind target object */
 	float blend;
 	int deform_space;
+	int flags;
+	int padding;
 } VertexSnapModifierData;
 
 enum {
 	MOD_VSNAP_LOCAL = 0,
 	MOD_VSNAP_WORLD = 1
+};
+
+enum {
+	MOD_VSNAP_INVERT_WEIGHTS = (1<<0)
 };
 
 

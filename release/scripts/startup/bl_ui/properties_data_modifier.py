@@ -1312,7 +1312,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop( md, "target", text="")
         col.prop( md, "blend",  text='Blend Amount' )
         col.prop( md, "deform_space" )
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row = col.row( align=True )
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        row.prop( md, "invert_weights", text='', icon='ARROW_LEFTRIGHT' )
 
 
     @staticmethod

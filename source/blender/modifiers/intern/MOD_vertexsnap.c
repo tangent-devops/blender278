@@ -63,6 +63,7 @@ static void initData(ModifierData *md)
 	vmd->target = NULL;
 	vmd->vertex_group[0] = 0;
 	vmd->deform_space = MOD_VSNAP_LOCAL;
+	vmd->flags = 0;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -156,6 +157,7 @@ static void VertexSnapModifier_do(
 	int target_vertex_count     = 0;
 
 	float blend = vmd->blend;
+	int   invert_weights = vmd->flags & MOD_VSNAP_INVERT_WEIGHTS;
 
 	#ifdef DEBUG_TIME
 		TIMEIT_START( vertex_snap_modifier ); 
@@ -194,7 +196,12 @@ static void VertexSnapModifier_do(
 		for ( index=0; index < vertex_count; index++ ) {
 			float final_blend = blend;
 			if (dverts) {
-				final_blend *= defvert_find_weight( &dverts[index], deform_group_index);
+				float defvert_weight = defvert_find_weight( &dverts[index], deform_group_index);
+				if (invert_weights) {
+					// assumes weights are 0.0f <= x <= 1.0f
+					defvert_weight = 1.0 - defvert_weight;
+				}
+				final_blend *= defvert_weight;
 			}
 
 			if ( final_blend ) {
@@ -215,13 +222,18 @@ static void VertexSnapModifier_do(
 		for ( index=0; index < vertex_count; index++ ) {
 			float final_blend = blend;
 			if (dverts) {
-				final_blend *= defvert_find_weight( &dverts[index], deform_group_index);
+				float defvert_weight = defvert_find_weight( &dverts[index], deform_group_index);
+				if (invert_weights) {
+					// assumes weights are 0.0f <= x <= 1.0f
+					defvert_weight = 1.0 - defvert_weight;
+				}
+				final_blend *= defvert_weight;
 			}
 
 			if ( final_blend ) {
 				interp_v3_v3v3( vertexCos[index], vertexCos[index], target_verts[index].co, final_blend );
 			}
-		}		
+		}
 	}
 
 	if (target_dm) {
