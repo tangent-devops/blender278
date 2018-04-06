@@ -326,9 +326,14 @@ public:
 	void mem_alloc(const char *name, device_memory& mem, MemoryType /*type*/)
 	{
 		if(name) {
-			VLOG(1) << "Buffer allocate: " << name << ", "
-			        << string_human_readable_number(mem.memory_size()) << " bytes. ("
-			        << string_human_readable_size(mem.memory_size()) << ")";
+			if(::strcmp(name, "render_buffer") == 0 || ::strcmp(name, "rng_state") == 0) {
+				/* skip logging these messages - too much noise */
+			}
+			else {
+				VLOG(1) << "Buffer allocate: " << name << ", "
+					<< string_human_readable_number(mem.memory_size()) << " bytes. ("
+					<< string_human_readable_size(mem.memory_size()) << ")";
+			}
 		}
 
 		mem.device_pointer = mem.data_pointer;
