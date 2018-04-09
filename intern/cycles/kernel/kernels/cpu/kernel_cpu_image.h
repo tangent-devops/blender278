@@ -28,12 +28,16 @@ ccl_device float4 kernel_tex_image_interp_impl(KernelGlobals *kg, int tex, float
 			return kg->texture_byte4_images[kernel_tex_index(tex)].interp(x, y);
 		case IMAGE_DATA_TYPE_HALF4:
 			return kg->texture_half4_images[kernel_tex_index(tex)].interp(x, y);
+		case IMAGE_DATA_TYPE_USHORT4:
+			return kg->texture_ushort4_images[kernel_tex_index(tex)].interp(x, y);
 		case IMAGE_DATA_TYPE_FLOAT:
 			return kg->texture_float_images[kernel_tex_index(tex)].interp(x, y);
 		case IMAGE_DATA_TYPE_BYTE:
 			return kg->texture_byte_images[kernel_tex_index(tex)].interp(x, y);
 		case IMAGE_DATA_TYPE_HALF:
 			return kg->texture_half_images[kernel_tex_index(tex)].interp(x, y);
+		case IMAGE_DATA_TYPE_USHORT:
+			return kg->texture_ushort_images[kernel_tex_index(tex)].interp(x, y);
 		case IMAGE_DATA_TYPE_FLOAT4:
 		default:
 			return kg->texture_float4_images[kernel_tex_index(tex)].interp(x, y);
@@ -47,12 +51,16 @@ ccl_device float4 kernel_tex_image_interp_3d_impl(KernelGlobals *kg, int tex, fl
 			return kg->texture_byte4_images[kernel_tex_index(tex)].interp_3d(x, y, z);
 		case IMAGE_DATA_TYPE_HALF4:
 			return kg->texture_half4_images[kernel_tex_index(tex)].interp_3d(x, y, z);
+		case IMAGE_DATA_TYPE_USHORT4:
+			return kg->texture_ushort4_images[kernel_tex_index(tex)].interp_3d(x, y, z);
 		case IMAGE_DATA_TYPE_FLOAT:
 			return kg->texture_float_images[kernel_tex_index(tex)].interp_3d(x, y, z);
 		case IMAGE_DATA_TYPE_BYTE:
 			return kg->texture_byte_images[kernel_tex_index(tex)].interp_3d(x, y, z);
 		case IMAGE_DATA_TYPE_HALF:
 			return kg->texture_half_images[kernel_tex_index(tex)].interp_3d(x, y, z);
+		case IMAGE_DATA_TYPE_USHORT:
+			return kg->texture_ushort_images[kernel_tex_index(tex)].interp_3d(x, y, z);
 		case IMAGE_DATA_TYPE_FLOAT4:
 		default:
 			return kg->texture_float4_images[kernel_tex_index(tex)].interp_3d(x, y, z);
@@ -66,12 +74,16 @@ ccl_device float4 kernel_tex_image_interp_3d_ex_impl(KernelGlobals *kg, int tex,
 			return kg->texture_byte4_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
 		case IMAGE_DATA_TYPE_HALF4:
 			return kg->texture_half4_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
+		case IMAGE_DATA_TYPE_USHORT4:
+			return kg->texture_ushort4_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
 		case IMAGE_DATA_TYPE_FLOAT:
 			return kg->texture_float_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
 		case IMAGE_DATA_TYPE_BYTE:
 			return kg->texture_byte_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
 		case IMAGE_DATA_TYPE_HALF:
 			return kg->texture_half_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
+		case IMAGE_DATA_TYPE_USHORT:
+			return kg->texture_ushort_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);
 		case IMAGE_DATA_TYPE_FLOAT4:
 		default:
 			return kg->texture_float4_images[kernel_tex_index(tex)].interp_3d_ex(x, y, z, interpolation);

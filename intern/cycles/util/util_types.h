@@ -172,6 +172,13 @@ struct uchar4 {
 	__forceinline uchar& operator[](int i) { return *(&x + i); }
 };
 
+struct ushort4 {
+	uint16_t x, y, z, w;
+
+	__forceinline uint16_t operator[](int i) const { return *(&x + i); }
+	__forceinline uint16_t& operator[](int i) { return *(&x + i); }
+};
+
 struct int2 {
 	int x, y;
 
@@ -518,9 +525,11 @@ enum ImageDataType {
 	IMAGE_DATA_TYPE_FLOAT4 = 0,
 	IMAGE_DATA_TYPE_BYTE4 = 1,
 	IMAGE_DATA_TYPE_HALF4 = 2,
-	IMAGE_DATA_TYPE_FLOAT = 3,
-	IMAGE_DATA_TYPE_BYTE = 4,
-	IMAGE_DATA_TYPE_HALF = 5,
+	IMAGE_DATA_TYPE_USHORT4 = 3,
+	IMAGE_DATA_TYPE_FLOAT = 4,
+	IMAGE_DATA_TYPE_BYTE = 5,
+	IMAGE_DATA_TYPE_HALF = 6,
+	IMAGE_DATA_TYPE_USHORT = 7,
 	
 	IMAGE_DATA_NUM_TYPES
 };
