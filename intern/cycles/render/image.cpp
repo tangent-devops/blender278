@@ -122,6 +122,9 @@ device_memory *ImageManager::image_memory(DeviceScene *dscene, int flat_slot)
 		   case IMAGE_DATA_TYPE_BYTE:
 			   tex_img = dscene->tex_byte_image[slot];
 			   break;
+		   case IMAGE_DATA_TYPE_USHORT:
+			   tex_img = dscene->tex_ushort_image[slot];
+			   break;
 		   case IMAGE_DATA_TYPE_BYTE4:
 			   tex_img = dscene->tex_byte4_image[slot];
 			   break;
@@ -130,6 +133,9 @@ device_memory *ImageManager::image_memory(DeviceScene *dscene, int flat_slot)
 			   break;
 		   case IMAGE_DATA_TYPE_HALF4:
 			   tex_img = dscene->tex_half4_image[slot];
+			   break;
+		   case IMAGE_DATA_TYPE_USHORT4:
+			   tex_img = dscene->tex_ushort4_image[slot];
 			   break;
 		   default:
 			   assert(0);
@@ -143,19 +149,19 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
                                                              boost::shared_ptr<uint8_t> generated_data,
                                                              bool& is_linear)
 {
-	bool is_float = false, is_half = false;
 	is_linear = false;
 	int channels = 4;
+	int channel_size = 0;
+	ImageDataType type = IMAGE_DATA_TYPE_BYTE;
 
     if (generated_data) {
-        is_float = true;
-        is_half = false;
         is_linear = true;
         channels = 4;
         return IMAGE_DATA_TYPE_FLOAT4;
     }
 
 	if(builtin_data) {
+		bool is_float = false;
 		if(builtin_image_info_cb) {
 			int width, height, depth;
 			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels);
@@ -170,7 +176,7 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
 		}
 	}
 
-	/* Perform preliminary checks, with meaningful logging. */
+	/* Perform preliminary  checks, with meaningful logging. */
 	if(!path_exists(filename)) {
 		VLOG(1) << "File '" << filename << "' does not exist.";
 		return IMAGE_DATA_TYPE_BYTE4;
@@ -188,23 +194,17 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
 		if(in->open(filename, spec)) {
 			/* check the main format, and channel formats;
 			 * if any take up more than one byte, we'll need a float texture slot */
-			if(spec.format.basesize() > 1) {
-				is_float = true;
-				is_linear = true;
+			if(spec.format.basesize() > channel_size) {
+				channel_size = spec.format.basesize();
 			}
 
 			for(size_t channel = 0; channel < spec.channelformats.size(); channel++) {
-				if(spec.channelformats[channel].basesize() > 1) {
-					is_float = true;
-					is_linear = true;
+				if(spec.channelformats[channel].basesize() > channel_size) {
+					channel_size = spec.channelformats[channel].basesize();
 				}
 			}
 
-			/* check if it's half float */
-			if(spec.format == TypeDesc::HALF)
-				is_half = true;
-
-			channels = spec.nchannels;
+			bool is_float = spec.format.is_floating_point();
 
 			/* basic color space detection, not great but better than nothing
 			 * before we do OpenColorIO integration */
@@ -223,21 +223,31 @@ ImageDataType ImageManager::get_image_metadata(const string& filename,
 				is_linear = false;
 			}
 
+			channels = spec.nchannels;
+
+			/* Default to float if we have no type that matches better. */
+			type = (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
+
+			if(spec.format == TypeDesc::HALF) {
+				type = (channels > 1) ? IMAGE_DATA_TYPE_HALF4 : IMAGE_DATA_TYPE_HALF;
+
+			}
+			else {
+				if(channel_size == 1) {
+					type = (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
+				}
+				else if(spec.format == TypeDesc::UINT16) {
+					type = (channels > 1) ? IMAGE_DATA_TYPE_USHORT4 : IMAGE_DATA_TYPE_USHORT;
+				}
+			}
+
 			in->close();
 		}
 
 		delete in;
 	}
 
-	if(is_half) {
-		return (channels > 1) ? IMAGE_DATA_TYPE_HALF4 : IMAGE_DATA_TYPE_HALF;
-	}
-	else if(is_float) {
-		return (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
-	}
-	else {
-		return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
-	}
+	return type;
 }
 
 const string ImageManager::get_mip_map_path(const string& filename)
@@ -312,6 +322,10 @@ string ImageManager::name_from_type(int type)
 		return "half4";
 	else if(type == IMAGE_DATA_TYPE_HALF)
 		return "half";
+	else if(type == IMAGE_DATA_TYPE_USHORT)
+		return "ushort";
+	else if(type == IMAGE_DATA_TYPE_USHORT4)
+		return "ushort4";
 	else
 		return "byte4";
 }
@@ -666,7 +680,8 @@ bool ImageManager::file_load_image(Image *img,
 	 */
 	bool is_rgba = (type == IMAGE_DATA_TYPE_FLOAT4 ||
 	                type == IMAGE_DATA_TYPE_HALF4 ||
-	                type == IMAGE_DATA_TYPE_BYTE4);
+	                type == IMAGE_DATA_TYPE_BYTE4 ||
+					type == IMAGE_DATA_TYPE_USHORT4);
 	if(is_rgba) {
 		if(cmyk) {
 			/* CMYK */
@@ -1010,7 +1025,71 @@ void ImageManager::device_load_image(Device *device,
 			                  img->extension);
 		}
 	}
+	else if(type == IMAGE_DATA_TYPE_USHORT4){
+		if (slot >= dscene->tex_ushort4_image.size()) {
+			return;
+		}
+		if(dscene->tex_ushort4_image[slot] == NULL)
+			dscene->tex_ushort4_image[slot] = new device_vector<ushort4>();
+		device_vector<ushort4>& tex_img = *dscene->tex_ushort4_image[slot];
 
+		if(tex_img.device_pointer) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_free(tex_img);
+		}
+
+		if(!file_load_image<TypeDesc::USHORT, half>(img,
+												  type,
+												  texture_limit,
+												  tex_img)) {
+			/* on failure to load, we set a 1x1 pixels pink image */
+			ushort *pixels = (ushort*)tex_img.resize(1, 1);
+
+			pixels[0] = TEX_IMAGE_MISSING_R * 65535;
+			pixels[1] = TEX_IMAGE_MISSING_G * 65535;
+			pixels[2] = TEX_IMAGE_MISSING_B * 65535;
+			pixels[3] = TEX_IMAGE_MISSING_A * 65535;
+		}
+
+		if(!pack_images) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_alloc(name.c_str(),
+							  tex_img,
+							  img->interpolation,
+							  img->extension);
+		}
+	}
+	else if(type == IMAGE_DATA_TYPE_USHORT){
+		if (slot >= dscene->tex_ushort_image.size()) {
+			return;
+		}
+		if(dscene->tex_ushort_image[slot] == NULL)
+			dscene->tex_ushort_image[slot] = new device_vector<uint16_t>();
+		device_vector<uint16_t>& tex_img = *dscene->tex_ushort_image[slot];
+
+		if(tex_img.device_pointer) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_free(tex_img);
+		}
+
+		if(!file_load_image<TypeDesc::USHORT, half>(img,
+												  type,
+												  texture_limit,
+												  tex_img)) {
+			/* on failure to load, we set a 1x1 pixels pink image */
+			uint16_t *pixels = (uint16_t*)tex_img.resize(1, 1);
+
+			pixels[0] = TEX_IMAGE_MISSING_R * 65535;
+		}
+
+		if(!pack_images) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_alloc(name.c_str(),
+							  tex_img,
+							  img->interpolation,
+							  img->extension);
+		}
+	}
 	img->need_load = false;
 }
 
@@ -1068,6 +1147,20 @@ void ImageManager::device_free_image(Device *device, DeviceScene *dscene, ImageD
 					tex_img = dscene->tex_half4_image[slot];
 					dscene->tex_half4_image[slot]= NULL;
 					break;
+				case IMAGE_DATA_TYPE_USHORT:
+					if(slot >= dscene->tex_ushort_image.size()) {
+						break;
+					}
+					tex_img = dscene->tex_ushort_image[slot];
+					dscene->tex_ushort_image[slot]= NULL;
+					break;
+				case IMAGE_DATA_TYPE_USHORT4:
+					if(slot >= dscene->tex_ushort4_image.size()) {
+						break;
+					}
+					tex_img = dscene->tex_ushort4_image[slot];
+					dscene->tex_ushort4_image[slot]= NULL;
+					break;
 				default:
 					assert(0);
 					tex_img = NULL;
@@ -1116,6 +1209,16 @@ void ImageManager::device_prepare_update(DeviceScene *dscene)
 				if (dscene->tex_half_image.size() <= tex_num_images[IMAGE_DATA_TYPE_HALF])
 					dscene->tex_half_image.resize(tex_num_images[IMAGE_DATA_TYPE_HALF]);
 				break;
+			case IMAGE_DATA_TYPE_USHORT4:
+				if (dscene->tex_ushort4_image.size() <= tex_num_images[IMAGE_DATA_TYPE_USHORT4])
+					dscene->tex_ushort4_image.resize(tex_num_images[IMAGE_DATA_TYPE_USHORT4]);
+				break;
+			case IMAGE_DATA_TYPE_USHORT:
+				if (dscene->tex_ushort_image.size() <= tex_num_images[IMAGE_DATA_TYPE_USHORT])
+					dscene->tex_ushort_image.resize(tex_num_images[IMAGE_DATA_TYPE_USHORT]);
+				break;
+			default:
+				assert(0);
 		}
 	}
 }

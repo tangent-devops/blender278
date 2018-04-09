@@ -200,6 +200,42 @@ void kernel_tex_copy(KernelGlobals *kg,
 			tex->extension = extension;
 		}
 	}
+	else if(strstr(name, "__tex_image_ushort4")) {
+		texture_image_ushort4 *tex = NULL;
+		int id = atoi(name + strlen("__tex_image_ushort4_"));
+		int array_index = kernel_tex_index(id);
+
+		if(array_index >= 0) {
+			if (array_index >= kg->texture_ushort4_images.size())
+				kg->texture_ushort4_images.resize(array_index+1);
+			tex = &kg->texture_ushort4_images[array_index];
+		}
+
+		if(tex) {
+			tex->data = (ushort4*)mem;
+			tex->dimensions_set(width, height, depth);
+			tex->interpolation = interpolation;
+			tex->extension = extension;
+		}
+	}
+	else if(strstr(name, "__tex_image_ushort")) {
+		texture_image_ushort *tex = NULL;
+		int id = atoi(name + strlen("__tex_image_ushort_"));
+		int array_index = kernel_tex_index(id);
+
+		if(array_index >= 0) {
+			if (array_index >= kg->texture_ushort_images.size())
+				kg->texture_ushort_images.resize(array_index+1);
+			tex = &kg->texture_ushort_images[array_index];
+		}
+
+		if(tex) {
+			tex->data = (uint16_t*)mem;
+			tex->dimensions_set(width, height, depth);
+			tex->interpolation = interpolation;
+			tex->extension = extension;
+		}
+	}
 	else
 		assert(0);
 }

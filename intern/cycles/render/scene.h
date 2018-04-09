@@ -120,6 +120,8 @@ public:
 	std::vector<device_vector<uchar>* > tex_byte_image;
 	std::vector<device_vector<half4>* > tex_half4_image;
 	std::vector<device_vector<half>* > tex_half_image;
+	std::vector<device_vector<ushort4>* > tex_ushort4_image;
+	std::vector<device_vector<uint16_t>* > tex_ushort_image;
 	
 	/* opencl images */
 	device_vector<uchar4> tex_image_byte4_packed;

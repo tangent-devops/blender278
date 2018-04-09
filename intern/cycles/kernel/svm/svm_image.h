@@ -194,7 +194,8 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 #  else
 	CUtexObject tex = kernel_tex_fetch(__bindless_mapping, id);
 	/* float4, byte4 and half4 */
-	if(kernel_tex_type(id) == IMAGE_DATA_TYPE_FLOAT4 || kernel_tex_type(id) == IMAGE_DATA_TYPE_BYTE4 || kernel_tex_type(id) == IMAGE_DATA_TYPE_HALF4)
+	if(kernel_tex_type(id) == IMAGE_DATA_TYPE_FLOAT4 || kernel_tex_type(id) == IMAGE_DATA_TYPE_BYTE4
+	   || kernel_tex_type(id) == IMAGE_DATA_TYPE_HALF4 || kernel_tex_type(id) == IMAGE_DATA_TYPE_USHORT4)
 		r = kernel_tex_image_interp_float4(tex, x, y);
 	/* float, byte and half */
 	else {

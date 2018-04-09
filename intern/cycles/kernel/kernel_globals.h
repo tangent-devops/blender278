@@ -49,9 +49,11 @@ typedef struct KernelGlobals {
 	std::vector<texture_image_uchar4> texture_byte4_images;
 	std::vector<texture_image_float4> texture_float4_images;
 	std::vector<texture_image_half4> texture_half4_images;
+	std::vector<texture_image_ushort4> texture_ushort4_images;
 	std::vector<texture_image_float> texture_float_images;
 	std::vector<texture_image_uchar> texture_byte_images;
 	std::vector<texture_image_half> texture_half_images;
+	std::vector<texture_image_ushort> texture_ushort_images;
 
 #  define KERNEL_TEX(type, ttype, name) ttype name;
 #  define KERNEL_IMAGE_TEX(type, ttype, name)
