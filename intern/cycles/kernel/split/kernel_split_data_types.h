@@ -62,7 +62,6 @@ typedef struct SplitParams {
 #endif
 
 #define SPLIT_DATA_ENTRIES \
-	SPLIT_DATA_ENTRY(ccl_global RNG, rng, 1) \
 	SPLIT_DATA_ENTRY(ccl_global float3, throughput, 1) \
 	SPLIT_DATA_ENTRY(ccl_global float, L_transparent, 1) \
 	SPLIT_DATA_ENTRY(PathRadiance, path_radiance, 1) \
