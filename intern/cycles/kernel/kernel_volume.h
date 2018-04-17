@@ -246,7 +246,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg,
 		float3 sigma_t;
 
 		/* compute attenuation over segment */
-		sd->ray_length = t + random_jitter_offset;
+		sd->ray_length = t + step_offset;
 		if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
 			/* Compute expf() only for every Nth step, to save some calculations
 			 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
@@ -545,7 +545,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 		VolumeShaderCoefficients coeff;
 
 		/* compute segment */
-		sd->ray_length = t + random_jitter_offset;
+		sd->ray_length = t + step_offset;
 		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
 			int closure_flag = sd->runtime_flag;
 			float3 new_tp;
@@ -772,7 +772,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 		VolumeShaderCoefficients coeff;
 
 		/* compute segment */
-		sd->ray_length = t + random_jitter_offset;
+		sd->ray_length = t + step_offset;
 		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
 			int closure_flag = sd->runtime_flag;
 			float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
