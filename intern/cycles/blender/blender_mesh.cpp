@@ -1219,7 +1219,9 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 		                                 need_undeformed,
 		                                 mesh->subdivision_type);
 
+		double time = 0.0f;
 		if(b_mesh) {
+			scoped_timer timer(&time);
 			if(render_layer.use_surfaces && !hide_tris) {
 				if(mesh->subdivision_type != Mesh::SUBDIVISION_NONE)
 					create_subd_mesh(scene, mesh, b_ob, b_mesh, used_shaders,
@@ -1243,6 +1245,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh, false);
 		}
+
+		VLOG(1) << "Generating mesh " << mesh->name.c_str() << " took " << time << " seconds.";
 	}
 	mesh->geometry_flags = requested_geometry_flags;
 

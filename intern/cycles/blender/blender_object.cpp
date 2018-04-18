@@ -272,32 +272,40 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	/* key to lookup object */
 	ObjectKey key(b_parent, persistent_id, b_ob);
 	Object *object;
-
+	
 	/* motion vector case */
 	if(motion) {
-		object = object_map.find(key);
-
-		if(object && (scene->need_motion() == Scene::MOTION_PASS ||
-		              object_use_motion(b_parent, b_ob)))
+		double time = 0.0;
 		{
-			/* object transformation */
-			if(tfm != object->tfm) {
-				VLOG(1) << "Object " << b_ob.name() << " motion detected.";
-				if(motion_time == -1.0f || motion_time == 1.0f) {
-					object->use_motion = true;
+			scoped_timer timer(&time);
+			object = object_map.find(key);
+
+			if(object && (scene->need_motion() == Scene::MOTION_PASS ||
+				object_use_motion(b_parent, b_ob)))
+			{
+				/* object transformation */
+				if(tfm != object->tfm) {
+					VLOG(1) << "Object " << b_ob.name() << " motion detected.";
+					if(motion_time == -1.0f || motion_time == 1.0f) {
+						object->use_motion = true;
+					}
 				}
-			}
 
-			if(motion_time == -1.0f) {
-				object->motion.pre = tfm;
-			}
-			else if(motion_time == 1.0f) {
-				object->motion.post = tfm;
-			}
+				if(motion_time == -1.0f) {
+					object->motion.pre = tfm;
+				}
+				else if(motion_time == 1.0f) {
+					object->motion.post = tfm;
+				}
 
-			/* mesh deformation */
-			if(object->mesh)
-				sync_mesh_motion(b_ob, object, motion_time);
+				/* mesh deformation */
+				if(object->mesh)
+					sync_mesh_motion(b_ob, object, motion_time);
+			}
+		}
+
+		if(time > 0.0) {
+			VLOG(1) << "Syncing motion for object " << b_ob.name() << " took " << time << " seconds.";
 		}
 
 		return object;
