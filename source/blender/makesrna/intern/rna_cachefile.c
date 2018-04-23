@@ -84,9 +84,9 @@ static void rna_CacheFile_update_handle(Main *bmain, Scene *scene, PointerRNA *p
 		BKE_cachefile_clean(scene, cache_file);
 		BLI_freelistN(&cache_file->object_paths);
 		cache_file->flag &= ~CACHEFILE_DIRTY;
-	}
 
-	BKE_cachefile_reload(bmain, cache_file);
+		BKE_cachefile_reload(bmain, cache_file);
+	}
 
 	rna_CacheFile_update(bmain, scene, ptr);
 }
