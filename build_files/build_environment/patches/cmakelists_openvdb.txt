@@ -8,7 +8,7 @@ project(OpenVDB)
 
 # --------------------------------------------------------------------------------
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 # --------------------------------------------------------------------------------
 
@@ -87,6 +87,10 @@ message (STATUS "ILMBase libraries    ${ILMBASE_LIBRARIES}")
 message (STATUS "TBB found ${TBB_FOUND} ")
 message (STATUS "TBB include dir ${TBB_INCLUDE_DIR}")
 message (STATUS "TBB libraries    ${TBB_LIBRARIES}") 
+
+message (STATUS "BLOSC found ${BLOSC_FOUND} ")
+message (STATUS "BLOSC include dir ${BLOSC_INCLUDE_DIRS}")
+message (STATUS "BLOSC library    ${BLOSC_LIBRARIES}") 
 
 if(MSVC)
     set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj" )
