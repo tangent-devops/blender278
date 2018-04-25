@@ -104,6 +104,7 @@ CacheFile *BKE_cachefile_copy(Main *bmain, CacheFile *cache_file)
 {
 	CacheFile *new_cache_file = BKE_libblock_copy(bmain, &cache_file->id);
 	new_cache_file->handle = NULL;
+	new_cache_file->handle_mutex = BLI_mutex_alloc();
 
 	BLI_listbase_clear(&new_cache_file->object_paths);
 
