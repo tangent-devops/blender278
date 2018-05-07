@@ -419,9 +419,21 @@ unsigned BVHEmbree::add_instance(Object *ob, int i)
 	unsigned geom_id = rtcNewInstance3(scene, instance_bvh->scene, num_motion_steps, i*2);
 
 	if(ob->use_motion) {
-		rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->motion.pre, 0);
+		/* In case of missing motion information for previous/next frame,
+		 * assume there is no motion. See the similar code in Object::compute_bounds(). */
+		if (ob->motion.pre != transform_empty()) {
+			rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->motion.pre, 0);
+		}
+		else {
+			rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->tfm, 0);
+		}
 		rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->tfm, 1);
-		rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->motion.post, 2);
+		if (ob->motion.post != transform_empty()) {
+			rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->motion.post, 2);
+		}
+		else {
+			rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->tfm, 2);
+		}
 	} else {
 		rtcSetTransform2(scene, geom_id, RTC_MATRIX_ROW_MAJOR, (const float*)&ob->tfm);
 	}
