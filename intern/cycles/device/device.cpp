@@ -400,4 +400,50 @@ void Device::free_memory()
 	devices.free_memory();
 }
 
+string Device::memory_stats()
+{
+	size_t mem_geometry = 0;
+	size_t mem_raytracing = 0;
+	size_t mem_attribute = 0;
+	size_t mem_tex2d = 0;
+	size_t mem_tex3d = 0;
+	size_t mem_other = 0;
+	size_t mem_light = 0;
+
+	unordered_map<string, size_t>::iterator it = mem_stats.begin();
+	while(it != mem_stats.end())
+	{
+		if(::strncmp(it->first.c_str(), "__prim", 6) == 0 ||
+		   ::strncmp(it->first.c_str(), "__tri", 5) == 0) {
+			mem_geometry += it->second;
+		}
+		else if(::strncmp(it->first.c_str(), "__attribute", 11) == 0) {
+			mem_attribute += it->second;
+		}
+		else if(::strncmp(it->first.c_str(), "__bvh", 5) == 0) {
+			mem_raytracing += it->second;
+		}
+		else if(::strncmp(it->first.c_str(), "__tex", 5) == 0) {
+			mem_tex2d += it->second;
+		}
+		else if(::strncmp(it->first.c_str(), "__light", 7) == 0) {
+			mem_light += it->second;
+		}
+		else {
+			mem_other += it->second;
+		}
+		++it;
+	}
+
+	std::cout << "Geometry memory: " << string_human_readable_size(mem_geometry) << "\n";
+	std::cout << "Attributes memory: " << string_human_readable_size(mem_attribute) << "\n";
+	std::cout << "Raytracing memory: " << string_human_readable_size(mem_raytracing) << "\n";
+	std::cout << "Texture memory:    " << string_human_readable_size(mem_tex2d) << "\n";
+	std::cout << "tex3d memory:    " << string_human_readable_size(mem_tex3d) << "\n";
+	std::cout << "Light memory:    " << string_human_readable_size(mem_light) << "\n";
+	std::cout << "other memory:    " << string_human_readable_size(mem_other) << "\n";
+
+	return "";
+}
+
 CCL_NAMESPACE_END

@@ -324,7 +324,7 @@ public:
 	void mem_zero(device_memory& mem);
 	void mem_free(device_memory& mem);
 	void const_copy_to(const char *name, void *host, size_t size);
-	void tex_alloc(const char *name,
+	void tex_alloc_imp(const char *name,
 	               device_memory& mem,
 	               InterpolationType /*interpolation*/,
 	               ExtensionType /*extension*/);

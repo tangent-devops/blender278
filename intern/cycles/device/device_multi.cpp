@@ -179,7 +179,7 @@ public:
 			sub.device->const_copy_to(name, host, size);
 	}
 
-	void tex_alloc(const char *name,
+	void tex_alloc_imp(const char *name,
 	               device_memory& mem,
 	               InterpolationType
 	               interpolation,

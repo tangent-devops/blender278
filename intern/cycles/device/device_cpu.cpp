@@ -376,7 +376,7 @@ public:
 		kernel_const_copy(&kernel_globals, name, host, size);
 	}
 
-	void tex_alloc(const char *name,
+	void tex_alloc_imp(const char *name,
 	               device_memory& mem,
 	               InterpolationType interpolation,
 	               ExtensionType extension)

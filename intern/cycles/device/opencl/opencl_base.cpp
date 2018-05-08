@@ -364,7 +364,7 @@ void OpenCLDeviceBase::const_copy_to(const char *name, void *host, size_t size)
 	mem_copy_to(*i->second);
 }
 
-void OpenCLDeviceBase::tex_alloc(const char *name,
+void OpenCLDeviceBase::tex_alloc_imp(const char *name,
                device_memory& mem,
                InterpolationType /*interpolation*/,
                ExtensionType /*extension*/)

@@ -250,6 +250,8 @@ void Scene::device_update(Device *device_, Progress& progress)
 		        << "  Peak: " << string_human_readable_number(mem_peak)
 		        << " (" << string_human_readable_size(mem_peak) << ")";
 	}
+
+	device->memory_stats();
 }
 
 Scene::MotionType Scene::need_motion(bool advanced_shading)

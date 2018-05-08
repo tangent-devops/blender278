@@ -588,7 +588,7 @@ public:
 		cuda_pop_context();
 	}
 
-	void tex_alloc(const char *name,
+	void tex_alloc_imp(const char *name,
 	               device_memory& mem,
 	               InterpolationType interpolation,
 	               ExtensionType extension)

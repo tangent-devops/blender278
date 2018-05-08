@@ -28,6 +28,7 @@
 #include "util/util_thread.h"
 #include "util/util_types.h"
 #include "util/util_vector.h"
+#include "util/util_map.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -248,6 +249,7 @@ public:
 
 	/* statistics */
 	Stats &stats;
+	unordered_map<string, size_t> mem_stats;
 
 	/* regular memory */
 	virtual void mem_alloc(const char *name, device_memory& mem, MemoryType type) = 0;
@@ -261,10 +263,19 @@ public:
 	virtual void const_copy_to(const char *name, void *host, size_t size) = 0;
 
 	/* texture memory */
-	virtual void tex_alloc(const char * /*name*/,
-	                       device_memory& /*mem*/,
+	void tex_alloc(const char * name,
+	                       device_memory& mem,
 	                       InterpolationType interpolation = INTERPOLATION_NONE,
 	                       ExtensionType extension = EXTENSION_REPEAT)
+	{
+		mem_stats[name] = mem.memory_size();
+		tex_alloc_imp(name, mem, interpolation, extension);
+	};
+
+	virtual void tex_alloc_imp(const char * /*name*/,
+						   device_memory& /*mem*/,
+						   InterpolationType interpolation = INTERPOLATION_NONE,
+						   ExtensionType extension = EXTENSION_REPEAT)
 	{
 		(void)interpolation;  /* Ignored. */
 		(void)extension;  /* Ignored. */
@@ -307,6 +318,8 @@ public:
 	/* multi device */
 	virtual void map_tile(Device * /*sub_device*/, RenderTile& /*tile*/) {}
 	virtual int device_number(Device * /*sub_device*/) { return 0; }
+
+	string memory_stats();
 
 	/* static */
 	static Device *create(DeviceInfo& info, Stats &stats, bool background = true);
