@@ -364,7 +364,9 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 				if(sd.runtime_flag & SD_RUNTIME_BACKFACING) {
 					for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE; ++i) {
 						if(state.volume_stack[i].object == sd.object) {
-							state.volume_stack[i].t_exit = volume_ray.t > state.volume_stack[i].t_exit ? volume_ray.t : state.volume_stack[i].t_exit;
+							if(volume_ray.t > state.volume_stack[i].t_exit || state.volume_stack[i].t_exit == FLT_MAX) {
+								state.volume_stack[i].t_exit = volume_ray.t;
+							}
 							break;
 						}
 					}
@@ -372,6 +374,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 				}
 				else {
 					int i = 0;
+					++volumes_entered;
 					bool found = false;
 					while(state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE - 1) {
 						if(state.volume_stack[i].object == sd.object) {
@@ -388,7 +391,6 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 						state.volume_stack[i].t_exit = FLT_MAX;
 						state.volume_stack[i + 1].shader = SHADER_NONE;
 					}
-					++volumes_entered;
 				}
 			}
 		}
