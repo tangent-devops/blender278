@@ -971,6 +971,7 @@ typedef struct VolumeStack {
 	   overlaps the volume bounds. */
 	float t_enter;
 	float t_exit;
+	int depth;
 } VolumeStack;
 #endif
 
