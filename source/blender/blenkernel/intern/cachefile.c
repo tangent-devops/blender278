@@ -164,15 +164,30 @@ void BKE_cachefile_update_frame(Main *bmain, Scene *scene, const float ctime, co
 			continue;
 		}
 
-		const float time = BKE_cachefile_time_offset(cache_file, ctime, fps);
+		float time = BKE_cachefile_time_offset(cache_file, ctime, fps);
 
-		if (BKE_cachefile_filepath_get(bmain, cache_file, time, filename)) {
-			BKE_cachefile_clean(scene, cache_file);
-#ifdef WITH_ALEMBIC
-			ABC_free_handle(cache_file->handle);
-			cache_file->handle = ABC_create_handle(filename, NULL);
-#endif
+		if (!BKE_cachefile_filepath_get(bmain, cache_file, time, filename)) {
+			int fstart, fend;
+
+			BKE_cachefile_frame_range_get(&cache_file->id, cache_file->filepath, &fstart, &fend);
+
+			if (time > fend) {
+				time = fend;
+			}
+			else if (time < fstart) {
+				time = fstart;
+			}
+
+			if (!BKE_cachefile_filepath_get(bmain, cache_file, time, filename)) {
+				continue;
+			}
 		}
+
+		BKE_cachefile_clean(scene, cache_file);
+#ifdef WITH_ALEMBIC
+		ABC_free_handle(cache_file->handle);
+		cache_file->handle = ABC_create_handle(filename, NULL);
+#endif
 	}
 }
 
@@ -197,6 +212,37 @@ bool BKE_cachefile_filepath_get(
 	}
 
 	return true;
+}
+
+void BKE_cachefile_frame_range_get(ID *id, char *path, int *r_start, int *r_end)
+{
+	char filepath[FILE_MAX];
+	char head[FILE_MAX], tail[FILE_MAX];
+	unsigned short numlen;
+
+	BLI_strncpy(filepath, path, sizeof(filepath));
+
+	if (BLI_path_is_rel(filepath)) {
+		BLI_path_abs(filepath, ID_BLEND_PATH(G.main, id));
+	}
+
+	*r_start = *r_end = BLI_stringdec(filepath, head, tail, &numlen);
+
+	/* Lower bound. */
+	BLI_stringenc(filepath, head, tail, numlen, (*r_start - 1));
+
+	while (*r_start > 0 && BLI_exists(filepath)) {
+		(*r_start)--;
+		BLI_stringenc(filepath, head, tail, numlen, (*r_start - 1));
+	}
+
+	/* Upper bound. */
+	BLI_stringenc(filepath, head, tail, numlen, (*r_end + 1));
+
+	while (BLI_exists(filepath)) {
+		(*r_end)++;
+		BLI_stringenc(filepath, head, tail, numlen, (*r_end + 1));
+	}
 }
 
 float BKE_cachefile_time_offset(CacheFile *cache_file, const float time, const float fps)
