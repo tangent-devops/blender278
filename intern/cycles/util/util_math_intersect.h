@@ -85,7 +85,7 @@ ccl_device_inline
 ccl_device_forceinline
 #endif
 bool ray_triangle_intersect(
-        float3 ray_P, float3 ray_dir, float ray_t,
+        float3 ray_P, float3 ray_dir, float ray_t_near, float ray_t,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
         const ssef *ssef_verts,
 #else
@@ -164,7 +164,7 @@ bool ray_triangle_intersect(
 	const float T = dot3(v0, Ng);
 	const int sign_den = (__float_as_int(den) & 0x80000000);
 	const float sign_T = xor_signmask(T, sign_den);
-	if((sign_T < 0.0f) ||
+	if((sign_T < ray_t_near * xor_signmask(den, sign_den)) ||
 	   (sign_T > ray_t * xor_signmask(den, sign_den)))
 	{
 		return false;

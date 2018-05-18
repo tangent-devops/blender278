@@ -66,6 +66,9 @@ ccl_device void kernel_lamp_emission(KernelGlobals *kg)
 			light_ray.P = ray.P - state->ray_t*ray.D;
 			state->ray_t += kernel_split_state.isect[ray_index].t;
 			light_ray.D = ray.D;
+			light_ray.t_near = 0.0f;
+			light_ray.object = OBJECT_NONE;
+			light_ray.prim = PRIM_NONE;
 			light_ray.t = state->ray_t;
 			light_ray.time = ray.time;
 			light_ray.dD = ray.dD;

@@ -169,9 +169,7 @@ float3 motion_triangle_refine_subsurface(KernelGlobals *kg,
 ccl_device_inline bool motion_triangle_intersect(
         KernelGlobals *kg,
         Intersection *isect,
-        float3 P,
-        float3 dir,
-        float time,
+		const Ray *ray,
         uint visibility,
         int object,
         int prim_addr)
@@ -183,11 +181,12 @@ ccl_device_inline bool motion_triangle_intersect(
 	                  : object;
 	/* Get vertex locations for intersection. */
 	float3 verts[3];
-	motion_triangle_vertices(kg, fobject, prim, time, verts);
+	motion_triangle_vertices(kg, fobject, prim, ray->time, verts);
 	/* Ray-triangle intersection, unoptimized. */
 	float t, u, v;
-	if(ray_triangle_intersect(P,
-	                          dir,
+	if(ray_triangle_intersect(ray->P,
+	                          ray->D,
+							  ray->t_near,
 	                          isect->t,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
 	                          (ssef*)verts,
@@ -203,6 +202,15 @@ ccl_device_inline bool motion_triangle_intersect(
 		if(kernel_tex_fetch(__prim_visibility, prim_addr) & visibility)
 #endif
 		{
+			if(isect->t == t) {
+				if(object < ray->object) {
+					return false;
+				} else if (object == ray->object) {
+					if(prim_addr < ray->prim) {
+						return false;
+					}
+				}
+			}
 			isect->t = t;
 			isect->u = u;
 			isect->v = v;
@@ -244,6 +252,7 @@ ccl_device_inline void motion_triangle_intersect_subsurface(
 	float t, u, v;
 	if(ray_triangle_intersect(P,
 	                          dir,
+							  0.0f,
 	                          tmax,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
 	                          (ssef*)verts,

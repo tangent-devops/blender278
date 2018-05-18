@@ -594,14 +594,19 @@ typedef struct Ray {
 	float3 P;		/* origin */
 	float3 D;		/* direction */
 
+	float t_near; 	/* min hit distance */
 	float t;		/* length of the ray */
 	float time;		/* time (for motion blur) */
 #else
+	float t_near;	/* min hit distance */
 	float t;		/* length of the ray */
 	float time;		/* time (for motion blur) */
 	float3 P;		/* origin */
 	float3 D;		/* direction */
 #endif
+
+	int prim;		/* last intersection primittive */
+	int object;		/* last intersection object */
 
 #ifdef __RAY_DIFFERENTIALS__
 	differential3 dP;

@@ -30,6 +30,9 @@ struct RTCORE_ALIGN(16) CCLRay : public RTCRay {
 	ccl::KernelGlobals *kg;
 	RayType type;
 	ccl::uint shadow_linking;
+	/* object and primitive of the last intersection */
+	int object;
+	int prim;
 
 	// for shadow rays
 	ccl::Intersection *isect_s;
@@ -49,7 +52,7 @@ struct RTCORE_ALIGN(16) CCLRay : public RTCRay {
 		dir[0] = ray.D.x;
 		dir[1] = ray.D.y;
 		dir[2] = ray.D.z;
-		tnear = 0.0f;
+		tnear = ray.t_near;
 		tfar = ray.t;
 		time = ray.time;
 		mask = visibility;

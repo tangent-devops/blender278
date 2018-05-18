@@ -52,6 +52,10 @@ ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg,
 #endif
 
 	camera_sample(kg, x, y, filter_u, filter_v, lens_u, lens_v, time, ray);
+
+	ray->t_near = 0.0f;
+	ray->object = OBJECT_NONE;
+	ray->prim = PRIM_NONE;
 }
 
 CCL_NAMESPACE_END

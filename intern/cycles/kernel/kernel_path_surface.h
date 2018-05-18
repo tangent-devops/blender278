@@ -179,6 +179,9 @@ ccl_device bool kernel_branched_path_surface_bounce(
 	/* setup ray */
 	ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);
 	ray->D = normalize(bsdf_omega_in);
+	ray->t_near = 0.0f;
+	ray->object = OBJECT_NONE;
+	ray->prim = PRIM_NONE;
 	ray->t = FLT_MAX;
 #ifdef __RAY_DIFFERENTIALS__
 	ray->dP = sd->dP;
@@ -318,6 +321,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
 		/* setup ray */
 		ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);
 		ray->D = normalize(bsdf_omega_in);
+		ray->t_near = 0.0f;
 
 		if(state->bounce == 0)
 			ray->t -= sd->ray_length; /* clipping works through transparent */
@@ -349,6 +353,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
 
 		/* setup ray position, direction stays unchanged */
 		ray->P = ray_offset(sd->P, -sd->Ng);
+		ray->t_near = 0.0f;
 #ifdef __RAY_DIFFERENTIALS__
 		ray->dP = sd->dP;
 #endif

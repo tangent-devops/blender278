@@ -39,6 +39,9 @@ ccl_device_inline void compute_light_pass(KernelGlobals *kg,
 
 	ray.P = sd->P + sd->Ng;
 	ray.D = -sd->Ng;
+	ray.t_near = 0.0f;
+	ray.object = OBJECT_NONE;
+	ray.prim = PRIM_NONE;
 	ray.t = FLT_MAX;
 #ifdef __CAMERA_MOTION__
 	ray.time = 0.5f;
@@ -470,6 +473,9 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 
 			ray.P = make_float3(0.0f, 0.0f, 0.0f);
 			ray.D = normalize(P);
+			ray.object = OBJECT_NONE;
+			ray.prim = PRIM_NONE;
+			ray.t_near = 0.0f;
 			ray.t = 0.0f;
 #ifdef __CAMERA_MOTION__
 			ray.time = 0.5f;
@@ -542,6 +548,9 @@ ccl_device void kernel_shader_evaluate(KernelGlobals *kg,
 
 		ray.P = make_float3(0.0f, 0.0f, 0.0f);
 		ray.D = equirectangular_to_direction(u, v);
+		ray.t_near = 0.0f;
+		ray.object = OBJECT_NONE;
+		ray.prim = PRIM_NONE;
 		ray.t = 0.0f;
 #ifdef __CAMERA_MOTION__
 		ray.time = 0.5f;

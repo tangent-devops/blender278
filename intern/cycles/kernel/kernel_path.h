@@ -81,6 +81,9 @@ ccl_device_noinline void kernel_path_ao(KernelGlobals *kg,
 
 		light_ray.P = ray_offset(sd->P, sd->Ng);
 		light_ray.D = ao_D;
+		light_ray.t_near = 0.0f;
+		light_ray.object = OBJECT_NONE;
+		light_ray.prim = PRIM_NONE;
 		light_ray.t = kernel_data.background.ao_distance;
 #ifdef __OBJECT_MOTION__
 		light_ray.time = ccl_fetch(sd, time);
@@ -141,6 +144,9 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 			Ray light_ray;
 
 			light_ray.P = ray->P - state->ray_t*ray->D;
+			light_ray.t_near = 0.0f;
+			light_ray.object = OBJECT_NONE;
+			light_ray.prim = PRIM_NONE;
 			state->ray_t += isect.t;
 			light_ray.D = ray->D;
 			light_ray.t = state->ray_t;
@@ -695,6 +701,9 @@ ccl_device_inline void kernel_path_integrate(KernelGlobals *kg,
 			Ray light_ray;
 
 			light_ray.P = ray.P - state.ray_t*ray.D;
+			light_ray.t_near = 0.0f;
+			light_ray.object = OBJECT_NONE;
+			light_ray.prim = PRIM_NONE;
 			state.ray_t += isect.t;
 			light_ray.D = ray.D;
 			light_ray.t = state.ray_t;

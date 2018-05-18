@@ -291,7 +291,10 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 				}
 
 				/* move ray forward */
-				ray->P = ray_offset(ccl_fetch(shadow_sd, P), -ccl_fetch(shadow_sd, Ng));
+
+				ray->t_near = isect->t;
+				ray->object = isect->object;
+				ray->prim = isect->prim;
 				if (ray->t != FLT_MAX) {
 					ray->D = normalize_len(Pend - ray->P, &ray->t);
 				}

@@ -1124,6 +1124,9 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 
 	Ray volume_ray = *ray;
 	volume_ray.t = FLT_MAX;
+	volume_ray.t_near = 0.0f;
+	volume_ray.object = OBJECT_NONE;
+	volume_ray.prim = PRIM_NONE;
 
 	const uint visibility = (state->flag & PATH_RAY_ALL_VISIBILITY);
 	int stack_index = 0, enclosed_index = 0;
@@ -1228,6 +1231,7 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 
 		/* Move ray forward. */
 		volume_ray.P = ray_offset(stack_sd->P, -stack_sd->Ng);
+		volume_ray.t_near = 0.0f;
 		++step;
 	}
 #endif
@@ -1346,6 +1350,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
 
 		/* Move ray forward. */
 		volume_ray.P = ray_offset(stack_sd->P, -stack_sd->Ng);
+		volume_ray.t_near = 0.0f;
 		if(volume_ray.t != FLT_MAX) {
 			volume_ray.D = normalize_len(Pend - volume_ray.P, &volume_ray.t);
 		}

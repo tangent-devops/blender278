@@ -71,7 +71,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	isect->prim = PRIM_NONE;
 	isect->object = OBJECT_NONE;
 
-	ssef tnear(0.0f), tfar(ray->t);
+	ssef tnear(ray->t_near), tfar(ray->t);
 #if BVH_FEATURE(BVH_HAIR)
 	sse3f dir4(ssef(dir.x), ssef(dir.y), ssef(dir.z));
 #endif
@@ -268,7 +268,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								triangle_intersect(kg, isect, P, dir, visibility, object, prim_addr);
+								triangle_intersect(kg, isect, ray, visibility, object, prim_addr);
 							}
 							break;
 						}
@@ -287,7 +287,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								motion_triangle_intersect(kg, isect, P, dir, ray->time, visibility, object, prim_addr);
+								motion_triangle_intersect(kg, isect, ray, visibility, object, prim_addr);
 							}
 							break;
 						}

@@ -85,7 +85,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	const ssef pn = cast(ssei(0, 0, 0x80000000, 0x80000000));
 	ssef Psplat[3], idirsplat[3];
 #  if BVH_FEATURE(BVH_HAIR)
-	ssef tnear(0.0f), tfar(isect->t);
+	ssef tnear(ray->t_near), tfar(isect->t);
 #  endif
 	shuffle_swap_t shufflexyz[3];
 
@@ -197,8 +197,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								triangle_intersect(kg,
 								                   isect,
-								                   P,
-								                   dir,
+												   ray,
 								                   visibility,
 								                   object,
 								                   prim_addr);
@@ -222,9 +221,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								motion_triangle_intersect(kg,
 								                          isect,
-								                          P,
-								                          dir,
-								                          ray->time,
+														  ray,
 								                          visibility,
 								                          object,
 								                          prim_addr);

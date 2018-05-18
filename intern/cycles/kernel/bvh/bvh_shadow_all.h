@@ -203,8 +203,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 							case PRIMITIVE_TRIANGLE: {
 								hit = triangle_intersect(kg,
 								                         isect_array,
-								                         P,
-								                         dir,
+														 ray,
 								                         PATH_RAY_SHADOW,
 								                         object,
 								                         prim_addr);
@@ -214,9 +213,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 							case PRIMITIVE_MOTION_TRIANGLE: {
 								hit = motion_triangle_intersect(kg,
 								                                isect_array,
-								                                P,
-								                                dir,
-								                                ray->time,
+																ray,
 								                                PATH_RAY_SHADOW,
 								                                object,
 								                                prim_addr);

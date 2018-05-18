@@ -301,6 +301,9 @@ ccl_device_inline int subsurface_scatter_multi_intersect(
 #endif
 	ray->P = sd->P + disk_N*disk_height + disk_P;
 	ray->D = -disk_N;
+	ray->t_near = 0.0f;
+	ray->object = OBJECT_NONE;
+	ray->prim = PRIM_NONE;
 	ray->t = 2.0f*disk_height;
 	ray->dP = sd->dP;
 	ray->dD = differential3_zero();
@@ -457,6 +460,7 @@ ccl_device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd, PathS
 	Ray ray;
 	ray.P = sd->P + disk_N*disk_height + disk_P;
 	ray.D = -disk_N;
+	ray.t_near = 0.0f;
 	ray.t = 2.0f*disk_height;
 	ray.dP = sd->dP;
 	ray.dD = differential3_zero();

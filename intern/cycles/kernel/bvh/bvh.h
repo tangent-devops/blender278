@@ -183,6 +183,8 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg,
 		return false;
 	}
 #endif /* __EMBREE__ */
+	isect->object = ray.object;
+	isect->prim = ray.prim;
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #  ifdef __HAIR__

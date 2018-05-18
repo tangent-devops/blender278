@@ -249,6 +249,9 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
 				Ray _ray;
 				_ray.P = ray_offset(sd->P, sd->Ng);
 				_ray.D = ao_D;
+				_ray.t_near = 0.0f;
+				_ray.object = OBJECT_NONE;
+				_ray.prim = PRIM_NONE;
 				_ray.t = kernel_data.background.ao_distance;
 #ifdef __OBJECT_MOTION__
 				_ray.time = sd->time;

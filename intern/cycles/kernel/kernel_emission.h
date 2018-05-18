@@ -36,6 +36,9 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 		Ray ray;
 		ray.D = ls->D;
 		ray.P = ls->P;
+		ray.t_near = 0.0f;
+		ray.prim = PRIM_NONE;
+		ray.object = OBJECT_NONE;
 		ray.t = 1.0f;
 #  ifdef __OBJECT_MOTION__
 		ray.time = time;
@@ -185,6 +188,9 @@ ccl_device_noinline bool direct_emission(KernelGlobals *kg,
 		/* setup ray */
 		bool transmit = (dot(sd->Ng, ls->D) < 0.0f);
 		ray->P = ray_offset(sd->P, (transmit)? -sd->Ng: sd->Ng);
+		ray->t_near = 0.0f;
+		ray->prim = PRIM_NONE;
+		ray->object = OBJECT_NONE;
 
 		if(ls->t == FLT_MAX) {
 			/* distant light */

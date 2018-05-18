@@ -47,6 +47,9 @@ ccl_device_inline void kernel_branched_path_ao(KernelGlobals *kg,
 
 			light_ray.P = ray_offset(sd->P, sd->Ng);
 			light_ray.D = ao_D;
+			light_ray.t_near = 0.0f;
+			light_ray.object = OBJECT_NONE;
+			light_ray.prim = PRIM_NONE;
 			light_ray.t = kernel_data.background.ao_distance;
 #ifdef __OBJECT_MOTION__
 			light_ray.time = ccl_fetch(sd, time);
@@ -355,6 +358,9 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 			if(sd.shader_flag & SD_SHADER_HAS_VOLUME) {
 				if(state.volume_stack[0].shader == SHADER_NONE) {
 					volume_ray.P = sd.P;
+					volume_ray.t_near = 0.0f;
+					volume_ray.object = OBJECT_NONE;
+					volume_ray.prim = PRIM_NONE;
 					volume_ray.t = 0.0f;
 					volume_ray.D = ray.D;
 				}
@@ -602,6 +608,9 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 				state.volume_stack[i].t_enter = 0.0f;
 			}
 			volume_ray.P = save_p;
+			volume_ray.t_near = 0.0f;
+			volume_ray.object = OBJECT_NONE;
+			volume_ray.prim = PRIM_NONE;
 		}
 #endif  /* __VOLUME__ */
 
@@ -770,8 +779,9 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 		}
 #endif
 
-		ray.P = ray_offset(sd.P, -sd.Ng);
-		ray.t -= sd.ray_length; /* clipping works through transparent */
+		ray.t_near = isect.t;
+		ray.prim = isect.prim;
+		ray.object = isect.object;
 
 #ifdef __RAY_DIFFERENTIALS__
 		ray.dP = sd.dP;

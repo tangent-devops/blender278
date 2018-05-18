@@ -106,6 +106,9 @@ bool kernel_path_volume_bounce(
 	/* setup ray */
 	ray->P = sd->P;
 	ray->D = phase_omega_in;
+	ray->t_near = 0.0f;
+	ray->object = OBJECT_NONE;
+	ray->prim = PRIM_NONE;
 	ray->t = FLT_MAX;
 
 #ifdef __RAY_DIFFERENTIALS__

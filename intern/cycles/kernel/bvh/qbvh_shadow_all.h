@@ -285,9 +285,8 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 							case PRIMITIVE_TRIANGLE: {
 								hit = triangle_intersect(kg,
 								                         isect_array,
-								                         P,
-								                         dir,
-								                         PATH_RAY_SHADOW,
+														 ray,
+														 PATH_RAY_SHADOW,
 								                         object,
 								                         prim_addr);
 								break;
@@ -296,9 +295,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 							case PRIMITIVE_MOTION_TRIANGLE: {
 								hit = motion_triangle_intersect(kg,
 								                                isect_array,
-								                                P,
-								                                dir,
-								                                ray->time,
+																ray,
 								                                PATH_RAY_SHADOW,
 								                                object,
 								                                prim_addr);
