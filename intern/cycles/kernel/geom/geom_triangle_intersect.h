@@ -24,7 +24,11 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
                                           Intersection *isect,
-										  const Ray *ray,
+										  float3 P,
+										  float3 dir,
+										  float t_near,
+                                          int ray_object,
+                                          int ray_prim,
                                           uint visibility,
                                           int object,
                                           int prim_addr)
@@ -38,9 +42,9 @@ ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
 	             tri_c = kernel_tex_fetch(__prim_tri_verts, tri_vindex+2);
 #endif
 	float t, u, v;
-	if(ray_triangle_intersect(ray->P,
-	                          ray->D,
-							  ray->t_near,
+	if(ray_triangle_intersect(P,
+	                          dir,
+							  t_near,
 	                          isect->t,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
 	                          ssef_verts,
@@ -58,11 +62,22 @@ ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
 		if(kernel_tex_fetch(__prim_visibility, prim_addr) & visibility)
 #endif
 		{
-			if(ray->t_near == t) {
-				if(object < ray->object) {
+			if(t_near == t) {
+				if(object < ray_object) {
 					return false;
-				} else if (object == ray->object) {
-					if(prim_addr <= ray->prim) {
+				}
+				else if (object == ray_object) {
+					if(prim_addr <= ray_prim) {
+						return false;
+					}
+				}
+			}
+			if(isect->t == t) {
+				if(object < isect->object) {
+					return false;
+				}
+				else if(object == isect->object) {
+					if(prim_addr <= isect->prim) {
 						return false;
 					}
 				}

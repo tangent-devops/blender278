@@ -66,6 +66,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 
 #if BVH_FEATURE(BVH_MOTION)
@@ -197,7 +198,11 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								triangle_intersect(kg,
 								                   isect,
-												   ray,
+												   P,
+												   dir,
+												   t_near,
+												   ray->object,
+												   ray->prim,
 								                   visibility,
 								                   object,
 								                   prim_addr);
@@ -221,8 +226,13 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								motion_triangle_intersect(kg,
 								                          isect,
-														  ray,
+														  P,
+														  dir,
+														  t_near,
+														  ray->object,
+														  ray->prim,
 								                          visibility,
+														  ray->time,
 								                          object,
 								                          prim_addr);
 							}
@@ -243,9 +253,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 					if (object_flag & SD_OBJECT_OBJECT_HAS_VOLUME) {
 
 #  if BVH_FEATURE(BVH_MOTION)
-						isect->t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
+						isect->t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &t_near, isect->t, &ob_itfm);
 #  else
-						isect->t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect->t);
+						isect->t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, &t_near, isect->t);
 #  endif
 
 #  if defined(__KERNEL_SSE2__)
@@ -284,9 +294,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 			/* instance pop */
 #  if BVH_FEATURE(BVH_MOTION)
-			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
+			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t, &ob_itfm);
 #  else
-			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, isect->t);
+			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t);
 #  endif
 
 #  if defined(__KERNEL_SSE2__)

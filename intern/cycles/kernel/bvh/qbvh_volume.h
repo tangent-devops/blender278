@@ -53,6 +53,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 
 #if BVH_FEATURE(BVH_MOTION)
@@ -268,7 +269,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								triangle_intersect(kg, isect, ray, visibility, object, prim_addr);
+								triangle_intersect(kg, isect, P, dir, t_near, ray->object, ray->prim, visibility, object, prim_addr);
 							}
 							break;
 						}
@@ -287,7 +288,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								motion_triangle_intersect(kg, isect, ray, visibility, object, prim_addr);
+								motion_triangle_intersect(kg, isect, P, dir, t_near, ray->object, ray->prim, visibility, ray->time, object, prim_addr);
 							}
 							break;
 						}
@@ -302,9 +303,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					if (object_flag & SD_OBJECT_OBJECT_HAS_VOLUME) {
 
 #  if BVH_FEATURE(BVH_MOTION)
-						isect->t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
+						isect->t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &t_near, isect->t, &ob_itfm);
 #  else
-						isect->t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect->t);
+						isect->t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, &t_near, isect->t);
 #  endif
 
 						qbvh_near_far_idx_calc(idir,
@@ -346,9 +347,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* Instance pop. */
 #  if BVH_FEATURE(BVH_MOTION)
-			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
+			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t, &ob_itfm);
 #  else
-			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, isect->t);
+			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t);
 #  endif
 
 			qbvh_near_far_idx_calc(idir,

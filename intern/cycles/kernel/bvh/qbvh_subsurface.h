@@ -58,6 +58,7 @@ ccl_device void BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	float3 idir = bvh_inverse_direction(dir);
 	int object = OBJECT_NONE;
 	float isect_t = ray->t;
+	float t_near = ray->t_near;
 
 	ss_isect->num_hits = 0;
 
@@ -71,10 +72,11 @@ ccl_device void BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 		                                   &P,
 		                                   &dir,
 		                                   &idir,
+										   &t_near,
 		                                   isect_t,
 		                                   &ob_itfm);
 #else
-		isect_t = bvh_instance_push(kg, subsurface_object, ray, &P, &dir, &idir, isect_t);
+		isect_t = bvh_instance_push(kg, subsurface_object, ray, &P, &dir, &idir, &t_near, isect_t);
 #endif
 		object = subsurface_object;
 	}

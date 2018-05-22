@@ -169,7 +169,12 @@ float3 motion_triangle_refine_subsurface(KernelGlobals *kg,
 ccl_device_inline bool motion_triangle_intersect(
         KernelGlobals *kg,
         Intersection *isect,
-		const Ray *ray,
+        float3 P,
+        float3 dir,
+        float t_near,
+        int ray_object,
+        int ray_prim,
+        float time,
         uint visibility,
         int object,
         int prim_addr)
@@ -181,12 +186,12 @@ ccl_device_inline bool motion_triangle_intersect(
 	                  : object;
 	/* Get vertex locations for intersection. */
 	float3 verts[3];
-	motion_triangle_vertices(kg, fobject, prim, ray->time, verts);
+	motion_triangle_vertices(kg, fobject, prim, time, verts);
 	/* Ray-triangle intersection, unoptimized. */
 	float t, u, v;
-	if(ray_triangle_intersect(ray->P,
-	                          ray->D,
-							  ray->t_near,
+	if(ray_triangle_intersect(P,
+	                          dir,
+							  t_near,
 	                          isect->t,
 #if defined(__KERNEL_SSE2__) && defined(__KERNEL_SSE__)
 	                          (ssef*)verts,
@@ -202,11 +207,22 @@ ccl_device_inline bool motion_triangle_intersect(
 		if(kernel_tex_fetch(__prim_visibility, prim_addr) & visibility)
 #endif
 		{
-			if(isect->t == t) {
-				if(object < ray->object) {
+			if(t_near == t) {
+				if(object < ray_object) {
 					return false;
-				} else if (object == ray->object) {
-					if(prim_addr < ray->prim) {
+				}
+				else if (object == ray_object) {
+					if(prim_addr <= ray_prim) {
+						return false;
+					}
+				}
+			}
+			if(isect->t == t) {
+				if(object < isect->object) {
+					return false;
+				}
+				else if(object == isect->object) {
+					if(prim_addr <= isect->prim) {
 						return false;
 					}
 				}

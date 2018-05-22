@@ -514,6 +514,7 @@ ccl_device_inline float bvh_instance_push(KernelGlobals *kg,
                                           float3 *P,
                                           float3 *dir,
                                           float3 *idir,
+										  float *t_near,
                                           float t)
 {
 	Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
@@ -545,6 +546,7 @@ ccl_device_inline void qbvh_instance_push(KernelGlobals *kg,
                                           float3 *dir,
                                           float3 *idir,
                                           float *t,
+										  float *t_near,
                                           float *t1)
 {
 	Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
@@ -557,6 +559,9 @@ ccl_device_inline void qbvh_instance_push(KernelGlobals *kg,
 
 	if(*t != FLT_MAX)
 		*t *= len;
+
+	if(*t_near != FLT_MAX)
+		*t_near *= len;
 
 	if(*t1 != -FLT_MAX)
 		*t1 *= len;
@@ -571,11 +576,16 @@ ccl_device_inline float bvh_instance_pop(KernelGlobals *kg,
                                          float3 *P,
                                          float3 *dir,
                                          float3 *idir,
+										 float *t_near,
                                          float t)
 {
+	Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
+	float length = len(transform_direction(&tfm, ray->D));
 	if(t != FLT_MAX) {
-		Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
-		t /= len(transform_direction(&tfm, ray->D));
+		t /= length;
+	}
+	if(*t_near != FLT_MAX) {
+		*t_near /= length;
 	}
 
 	*P = ray->P;
@@ -607,6 +617,7 @@ ccl_device_inline float bvh_instance_motion_push(KernelGlobals *kg,
                                                 float3 *P,
                                                 float3 *dir,
                                                 float3 *idir,
+                                                float *t_near,
                                                 float t,
                                                 Transform *itfm)
 {
@@ -620,6 +631,9 @@ ccl_device_inline float bvh_instance_motion_push(KernelGlobals *kg,
 
 	if(t != FLT_MAX) {
 		t *= len;
+	}
+	if(*t_near != FLT_MAX) {
+		*t_near *= len;
 	}
 
 	return t;
@@ -639,6 +653,7 @@ ccl_device_inline void qbvh_instance_motion_push(KernelGlobals *kg,
                                                  float3 *dir,
                                                  float3 *idir,
                                                  float *t,
+												 float *t_near,
                                                  float *t1,
                                                  Transform *itfm)
 {
@@ -653,6 +668,9 @@ ccl_device_inline void qbvh_instance_motion_push(KernelGlobals *kg,
 	if(*t != FLT_MAX)
 		*t *= len;
 
+	if(*t_near != FLT_MAX)
+		*t_near *= len;
+
 	if(*t1 != -FLT_MAX)
 		*t1 *= len;
 }
@@ -666,11 +684,16 @@ ccl_device_inline float bvh_instance_motion_pop(KernelGlobals *kg,
                                                 float3 *P,
                                                 float3 *dir,
                                                 float3 *idir,
+												float *t_near,
                                                 float t,
                                                 Transform *itfm)
 {
+	float length = len(transform_direction(itfm, ray->D));
 	if(t != FLT_MAX) {
-		t /= len(transform_direction(itfm, ray->D));
+		t /= length;
+	}
+	if(*t_near != FLT_MAX) {
+		*t_near /= length;
 	}
 
 	*P = ray->P;
