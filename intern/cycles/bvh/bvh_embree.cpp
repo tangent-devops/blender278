@@ -81,7 +81,50 @@ void rtc_filter_func(void*, RTCRay& ray_)
 	if(ray.type == CCLRay::RAY_REGULAR) {
 		if(!rtc_shadow_linking(ray)) {
 			ray.geomID = RTC_INVALID_GEOMETRY_ID;
+			return;
 		}
+
+		/* Enforce ordered intersections. For objects of equal distance, sort by object/prim index. */
+		int object = ray.instID != RTC_INVALID_GEOMETRY_ID ? ray.instID/2 : OBJECT_NONE;
+		int prim = PRIM_NONE;
+		if(ray.instID != RTC_INVALID_GEOMETRY_ID) {
+			RTCScene inst_scene = (RTCScene)rtcGetUserData(kernel_data.bvh.scene, ray.instID);
+			prim = ray.primID + (intptr_t)rtcGetUserData(inst_scene, ray.geomID) + kernel_tex_fetch(__object_node, ray.instID/2);
+		}
+		else {
+			prim = ray.primID + (intptr_t)rtcGetUserData(kernel_data.bvh.scene, ray.geomID);
+		}
+		/* Sort intersections at ray origin. */
+		if(ray.tnear == ray.tfar) {
+			if(object < ray.object) {
+				ray.geomID = RTC_INVALID_GEOMETRY_ID;
+				return;
+			}
+			if(object == ray.object) {
+				if(prim <= ray.prim) {
+					ray.geomID = RTC_INVALID_GEOMETRY_ID;
+					return;
+				}
+			}
+		}
+		/* Sort other ray intersections. */
+		if(ray.t_test == ray.tfar) {
+			if(object < ray.object_test) {
+				ray.geomID = RTC_INVALID_GEOMETRY_ID;
+				return;
+			}
+			if (object == ray.object_test) {
+				if(prim <= ray.prim_test) {
+					ray.geomID = RTC_INVALID_GEOMETRY_ID;
+					return;
+				}
+			}
+		}
+
+		ray.t_test = ray.tfar;
+		ray.object_test = object;
+		ray.prim_test = prim;
+
 		return;
 	}
 	else if(ray.type == CCLRay::RAY_SHADOW_ALL) {

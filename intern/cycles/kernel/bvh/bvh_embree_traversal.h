@@ -30,9 +30,14 @@ struct RTCORE_ALIGN(16) CCLRay : public RTCRay {
 	ccl::KernelGlobals *kg;
 	RayType type;
 	ccl::uint shadow_linking;
-	/* object and primitive of the last intersection */
+	/* object and primitive of the ray start */
 	int object;
 	int prim;
+
+	/* object, primitive and distance of the last successful intersection test */
+	int object_test;
+	int prim_test;
+	float t_test;
 
 	// for shadow rays
 	ccl::Intersection *isect_s;
@@ -58,6 +63,12 @@ struct RTCORE_ALIGN(16) CCLRay : public RTCRay {
 		mask = visibility;
 		geomID = primID = instID = RTC_INVALID_GEOMETRY_ID;
 
+		prim = ray.prim;
+		object = ray.object;
+		object_test = OBJECT_NONE;
+		prim_test = PRIM_NONE;
+		t_test = -1.0f;
+
 		kg = kg_;
 		type = type_;
 		shadow_linking = shadow_linking_;
@@ -65,7 +76,7 @@ struct RTCORE_ALIGN(16) CCLRay : public RTCRay {
 		num_hits = 0;
 		isect_s = NULL;
 		ss_isect = NULL;
-		sss_object_id = -1;
+		sss_object_id = OBJECT_NONE;
 		lcg_state = NULL;
 	}
 

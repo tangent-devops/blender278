@@ -68,6 +68,7 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 	float isect_t = tmax;
 
@@ -202,7 +203,11 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								hit = triangle_intersect(kg,
 								                         isect_array,
-														 ray,
+														 P,
+														 dir,
+														 t_near,
+														 ray->object,
+														 ray->prim,
 								                         visibility,
 								                         object,
 								                         prim_addr);
@@ -249,7 +254,13 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								}
 								hit = motion_triangle_intersect(kg,
 								                                isect_array,
-																ray,								                                visibility,
+																P,
+																dir,
+																t_near,
+																ray->object,
+																ray->prim,
+																ray->time,
+																visibility,
 								                                object,
 								                                prim_addr);
 								if(hit) {
@@ -294,9 +305,9 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 
 #  if BVH_FEATURE(BVH_MOTION)
-						isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, isect_t, &ob_itfm);
+						isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t, &ob_itfm);
 #  else
-						isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect_t);
+						isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t);
 #  endif
 
 						num_hits_in_instance = 0;
@@ -348,12 +359,13 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 				for(int i = 0; i < num_hits_in_instance; i++) {
 					(isect_array-i-1)->t *= t_fac;
 				}
+				t_near *= t_fac;
 			}
 			else {
 #  if BVH_FEATURE(BVH_MOTION)
-				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX, &ob_itfm);
+				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX, &ob_itfm);
 #  else
-				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX);
+				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX);
 #  endif
 			}
 

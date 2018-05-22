@@ -66,6 +66,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 
 #if BVH_FEATURE(BVH_MOTION)
@@ -338,7 +339,11 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 								if(triangle_intersect(kg,
 								                      isect,
-													  ray,
+								                      P,
+								                      dir,
+                                                      t_near,
+													  ray->object,
+													  ray->prim,
 								                      visibility,
 								                      object,
 								                      prim_addr)) {
@@ -362,8 +367,13 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 								if(motion_triangle_intersect(kg,
 								                             isect,
-															 ray,
-															 visibility,
+								                             P,
+								                             dir,
+															 t_near,
+															 ray->object,
+															 ray->prim,
+								                             ray->time,
+								                             visibility,
 								                             object,
 								                             prim_addr)) {
 									tfar = ssef(isect->t);
@@ -389,6 +399,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									                                   isect,
 									                                   P,
 									                                   dir,
+                                                                       t_near,
+																	   ray->object,
+																	   ray->prim,
 									                                   visibility,
 									                                   object,
 									                                   prim_addr,
@@ -403,6 +416,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									                          isect,
 									                          P,
 									                          dir,
+															  t_near,
+															  ray->object,
+															  ray->prim,
 									                          visibility,
 									                          object,
 									                          prim_addr,
@@ -431,9 +447,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					object = kernel_tex_fetch(__prim_object, -prim_addr-1);
 
 #  if BVH_FEATURE(BVH_MOTION)
-					qbvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &node_dist, &ob_itfm);
+					qbvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &t_near, &node_dist, &ob_itfm);
 #  else
-					qbvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect->t, &node_dist);
+					qbvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect->t, &t_near, &node_dist);
 #  endif
 
 					qbvh_near_far_idx_calc(idir,
@@ -471,9 +487,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* Instance pop. */
 #  if BVH_FEATURE(BVH_MOTION)
-			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
+			isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t, &ob_itfm);
 #  else
-			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, isect->t);
+			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, isect->t);
 #  endif
 
 			qbvh_near_far_idx_calc(idir,

@@ -68,6 +68,7 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 	float isect_t = tmax;
 
@@ -203,7 +204,11 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 							case PRIMITIVE_TRIANGLE: {
 								hit = triangle_intersect(kg,
 								                         isect_array,
-														 ray,
+														 P,
+														 dir,
+														 t_near,
+														 ray->object,
+														 ray->prim,
 								                         PATH_RAY_SHADOW,
 								                         object,
 								                         prim_addr);
@@ -213,7 +218,12 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 							case PRIMITIVE_MOTION_TRIANGLE: {
 								hit = motion_triangle_intersect(kg,
 								                                isect_array,
-																ray,
+																P,
+																dir,
+																t_near,
+																ray->object,
+																ray->prim,
+																ray->time,
 								                                PATH_RAY_SHADOW,
 								                                object,
 								                                prim_addr);
@@ -229,6 +239,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 									                                   isect_array,
 									                                   P,
 									                                   dir,
+																	   t_near,
+																	   ray->object,
+																	   ray->prim,
 									                                   PATH_RAY_SHADOW,
 									                                   object,
 									                                   prim_addr,
@@ -242,6 +255,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 									                          isect_array,
 									                          P,
 									                          dir,
+															  t_near,
+															  ray->object,
+															  ray->prim,
 									                          PATH_RAY_SHADOW,
 									                          object,
 									                          prim_addr,
@@ -310,9 +326,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 					object = kernel_tex_fetch(__prim_object, -prim_addr-1);
 
 #  if BVH_FEATURE(BVH_MOTION)
-					isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, isect_t, &ob_itfm);
+					isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t, &ob_itfm);
 #  else
-					isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect_t);
+					isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t);
 #  endif
 
 					num_hits_in_instance = 0;
@@ -358,12 +374,14 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 				for(int i = 0; i < num_hits_in_instance; i++) {
 					(isect_array-i-1)->t *= t_fac;
 				}
+
+				t_near *= t_fac;
 			}
 			else {
 #  if BVH_FEATURE(BVH_MOTION)
-				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX, &ob_itfm);
+				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX, &ob_itfm);
 #  else
-				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX);
+				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX);
 #  endif
 			}
 

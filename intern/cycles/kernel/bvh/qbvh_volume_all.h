@@ -55,6 +55,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 	float isect_t = tmax;
 
@@ -273,7 +274,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								hit = triangle_intersect(kg, isect_array, ray, visibility, object, prim_addr);
+								hit = triangle_intersect(kg, isect_array, P, dir, t_near, ray->object, ray->prim, visibility, object, prim_addr);
 								if(hit) {
 									/* Move on to next entry in intersections array. */
 									isect_array++;
@@ -315,7 +316,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 									continue;
 								}
 								/* Intersect ray against primitive. */
-								hit = motion_triangle_intersect(kg, isect_array, ray, visibility, object, prim_addr);
+								hit = motion_triangle_intersect(kg, isect_array, P, dir, t_near, ray->object, ray->prim, ray->time, visibility, object, prim_addr);
 								if(hit) {
 									/* Move on to next entry in intersections array. */
 									isect_array++;
@@ -353,9 +354,9 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 					if (object_flag & SD_OBJECT_OBJECT_HAS_VOLUME) {
 #  if BVH_FEATURE(BVH_MOTION)
-						isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, isect_t, &ob_itfm);
+						isect_t = bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t, &ob_itfm);
 #  else
-						isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect_t);
+						isect_t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, &t_near, isect_t);
 #  endif
 
 						qbvh_near_far_idx_calc(idir,
@@ -410,12 +411,13 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 				for(int i = 0; i < num_hits_in_instance; i++) {
 					(isect_array-i-1)->t *= t_fac;
 				}
+				t_near *= t_fac;
 			}
 			else {
 #  if BVH_FEATURE(BVH_MOTION)
-				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX, &ob_itfm);
+				bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX, &ob_itfm);
 #  else
-				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX);
+				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &t_near, FLT_MAX);
 #  endif
 			}
 

@@ -67,6 +67,7 @@ void BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	float3 P = ray->P;
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
+	float t_near = ray->t_near;
 	int object = OBJECT_NONE;
 	float isect_t = ray->t;
 
@@ -82,10 +83,11 @@ void BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 		                                   &P,
 		                                   &dir,
 		                                   &idir,
+										   &t_near,
 		                                   isect_t,
 		                                   &ob_itfm);
 #else
-		isect_t = bvh_instance_push(kg, subsurface_object, ray, &P, &dir, &idir, isect_t);
+		isect_t = bvh_instance_push(kg, subsurface_object, ray, &P, &dir, &idir, &t_near, isect_t);
 #endif
 		object = subsurface_object;
 	}
