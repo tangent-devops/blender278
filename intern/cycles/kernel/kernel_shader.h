@@ -1246,7 +1246,7 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 	sd->shader_flag = 0;
 	sd->object_flag = 0;
 
-	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
 		/* Skip volumes that don't overlap the current point. */
 		if(stack[i].t_enter > sd->ray_length || stack[i].t_exit < sd->ray_length) {
 			continue;

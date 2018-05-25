@@ -364,7 +364,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 				if(sd.runtime_flag & SD_RUNTIME_BACKFACING) {
 					/* The ray is leaving a volume. */
 					--volumes_entered;
-					for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE; ++i) {
+					for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; ++i) {
 						if(state.volume_stack[i].object == sd.object && state.volume_stack[i].depth > 0) {
 							--state.volume_stack[i].depth;
 							if(state.volume_stack[i].t_exit == FLT_MAX) {
@@ -588,7 +588,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 			/* todo: avoid this calculation using decoupled ray marching */
 			kernel_volume_shadow(kg, &emission_sd, &state, &volume_ray, &throughput);
 #endif  /* __VOLUME_DECOUPLED__ */
-			for(int i = 0; state.volume_stack[i].shader != SHADER_NONE; ++i) {
+			for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; ++i) {
 				if(state.volume_stack[i].t_exit < FLT_MAX) {
 					int j = i;
 					/* shift back next stack entries */
@@ -596,7 +596,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 						state.volume_stack[j] = state.volume_stack[j+1];
 						++j;
 					}
-					while(state.volume_stack[j].shader != SHADER_NONE);
+					while(state.volume_stack[j].shader != SHADER_NONE && j < VOLUME_STACK_SIZE);
 					--i;
 				}
 				state.volume_stack[i].t_enter = 0.0f;
@@ -723,7 +723,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 		PathState hit_state = state;
 
 #ifdef __VOLUME__
-		for(int i = 0; hit_state.volume_stack[i].shader != SHADER_NONE; ++i) {
+		for(int i = 0; hit_state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; ++i) {
 			hit_state.volume_stack[i].t_enter = 0.0f;
 			hit_state.volume_stack[i].t_exit = FLT_MAX;
 		}
