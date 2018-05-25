@@ -66,8 +66,7 @@ ccl_device_inline void kernel_volume_branch_stack(float distance, VolumeStack *s
 	/* Remove all non-overlapping volumes from the stack.
 	   Set all other volumes to go from zero to infinity.
 	 */
-	for (int i = 0; stack[i].shader != SHADER_NONE; ++i) {
-		assert(i >= 0 && i < VOLUME_STACK_SIZE);
+	for (int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; ++i) {
 		if (stack[i].t_exit <distance ||stack[i].t_enter > distance) {
 			int j = i;
 			/* shift back next stack entries */
@@ -75,7 +74,7 @@ ccl_device_inline void kernel_volume_branch_stack(float distance, VolumeStack *s
 				assert(j >= 0 && j < VOLUME_STACK_SIZE - 1);
 				stack[j] = stack[j + 1];
 				++j;
-			} while(stack[j].shader != SHADER_NONE);
+			} while(stack[j].shader != SHADER_NONE && j < VOLUME_STACK_SIZE);
 			--i;
 		}
 		else {
@@ -138,7 +137,7 @@ ccl_device float kernel_volume_channel_get(float3 value, int channel)
 
 ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, ccl_addr_space VolumeStack *stack)
 {
-	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
 		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*SHADER_SIZE);
 
 		if (shader_flag & SD_SHADER_HETEROGENEOUS_VOLUME)
@@ -155,7 +154,7 @@ ccl_device int volume_stack_sampling_method(KernelGlobals *kg, VolumeStack *stac
 
 	int method = -1;
 
-	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
 		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*SHADER_SIZE);
 
 		if (shader_flag & SD_SHADER_VOLUME_MIS) {
@@ -1252,14 +1251,15 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 
 ccl_device void kernel_volume_stack_remove(KernelGlobals *kg, int object, ccl_addr_space VolumeStack *stack)
 {
-	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
 		if(stack[i].object == object) {
 			/* shift back next stack entries */
+			int j = i;
 			do {
-				stack[i] = stack[i+1];
-				i++;
+				stack[i] = stack[j+1];
+				j++;
 			}
-			while(stack[i].shader != SHADER_NONE);
+			while(stack[j].shader != SHADER_NONE && j < VOLUME_STACK_SIZE);
 
 			return;
 		}
@@ -1283,7 +1283,7 @@ ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd
 		/* enter volume object: add to stack */
 		int i;
 
-		for(i = 0; stack[i].shader != SHADER_NONE; i++) {
+		for(i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
 			/* already in the stack? then we have nothing to do */
 			if(stack[i].object == sd->object)
 				return;
