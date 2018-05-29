@@ -61,20 +61,23 @@ ccl_device_inline bool volume_shader_extinction_sample(KernelGlobals *kg,
 	return true;
 }
 
-ccl_device_inline void kernel_volume_branch_stack(float distance, VolumeStack *stack)
+ccl_device_inline void kernel_volume_branch_stack(float distance, PathState *state)
 {
 	/* Remove all non-overlapping volumes from the stack.
 	   Set all other volumes to go from zero to infinity.
 	 */
-	for (int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; ++i) {
+	VolumeStack *stack = state->volume_stack;
+
+	for (int i = 0; stack[i].shader != SHADER_NONE; ++i) {
+		assert(i >= 0 && i < volume_stack_size(state));
 		if (stack[i].t_exit <distance ||stack[i].t_enter > distance) {
 			int j = i;
 			/* shift back next stack entries */
 			do {
-				assert(j >= 0 && j < VOLUME_STACK_SIZE - 1);
+				assert(j >= 0 && j < volume_stack_size(state) - 1);
 				stack[j] = stack[j + 1];
 				++j;
-			} while(stack[j].shader != SHADER_NONE && j < VOLUME_STACK_SIZE);
+			} while(stack[j].shader != SHADER_NONE);
 			--i;
 		}
 		else {
@@ -137,7 +140,7 @@ ccl_device float kernel_volume_channel_get(float3 value, int channel)
 
 ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, ccl_addr_space VolumeStack *stack)
 {
-	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
 		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*SHADER_SIZE);
 
 		if (shader_flag & SD_SHADER_HETEROGENEOUS_VOLUME)
@@ -154,7 +157,7 @@ ccl_device int volume_stack_sampling_method(KernelGlobals *kg, VolumeStack *stac
 
 	int method = -1;
 
-	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
 		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*SHADER_SIZE);
 
 		if (shader_flag & SD_SHADER_VOLUME_MIS) {
@@ -1095,7 +1098,7 @@ ccl_device bool kernel_volume_use_decoupled(KernelGlobals *kg, bool heterogeneou
 
 ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
                                          ShaderData *stack_sd,
-                                         ccl_addr_space const PathState *state,
+                                         ccl_addr_space PathState *state,
                                          ccl_addr_space const Ray *ray,
                                          ccl_addr_space VolumeStack *stack)
 {
@@ -1161,15 +1164,21 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 					}
 				}
 				if(need_add) {
-					kernel_assert(stack_index < VOLUME_STACK_SIZE);
 					stack[stack_index].object = stack_sd->object;
 					stack[stack_index].shader = stack_sd->shader;
 					stack[stack_index].t_enter = 0.0f;
 					stack[stack_index].t_exit = FLT_MAX;
 					++stack_index;
-					if(stack_index >= VOLUME_STACK_SIZE - 1) {
-						break;
+
+#ifdef __KERNEL_CPU__
+					/* Grow volume stack if necessary. */
+					if(stack_index == (volume_stack_size(state) - 1)) {
+						state->volume_stack_storage.resize(state->volume_stack_storage.size() + VOLUME_STACK_SIZE);
+						/* Change the pointers to the array start. */
+						state->volume_stack = &state->volume_stack_storage[0];
+						stack = state->volume_stack;
 					}
+#endif
 				}
 			}
 			else {
@@ -1255,22 +1264,21 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 
 ccl_device void kernel_volume_stack_remove(KernelGlobals *kg, int object, ccl_addr_space VolumeStack *stack)
 {
-	for(int i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
+	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
 		if(stack[i].object == object) {
 			/* shift back next stack entries */
-			int j = i;
 			do {
-				stack[i] = stack[j+1];
-				j++;
+				stack[i] = stack[i+1];
+				i++;
 			}
-			while(stack[j].shader != SHADER_NONE && j < VOLUME_STACK_SIZE);
+			while(stack[i].shader != SHADER_NONE);
 
 			return;
 		}
 	}
 }
 
-ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd, ccl_addr_space VolumeStack *stack)
+ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd, ccl_addr_space PathState *state)
 {
 	/* todo: we should have some way for objects to indicate if they want the
 	 * world shader to work inside them. excluding it by default is problematic
@@ -1281,28 +1289,37 @@ ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd
 	
 	if(sd->runtime_flag & SD_RUNTIME_BACKFACING) {
 		/* exit volume object: remove from stack */
-		kernel_volume_stack_remove(kg, sd->object, stack);
+		kernel_volume_stack_remove(kg, sd->object, state->volume_stack);
 	}
 	else {
+
 		/* enter volume object: add to stack */
 		int i;
 
-		for(i = 0; stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE-1; i++) {
+		for(i = 0; state->volume_stack[i].shader != SHADER_NONE; i++) {
 			/* already in the stack? then we have nothing to do */
-			if(stack[i].object == sd->object)
+			if(state->volume_stack[i].object == sd->object)
 				return;
 		}
-
+		
+#ifdef __KERNEL_CPU__
+		/* Grow volume stack if necessary. */
+		if(i == (volume_stack_size(state) - 1)) {
+			state->volume_stack_storage.resize(state->volume_stack_storage.size() + VOLUME_STACK_SIZE);
+			state->volume_stack = &state->volume_stack_storage[0];
+		}
+#else
 		/* if we exceed the stack limit, ignore */
 		if(i >= VOLUME_STACK_SIZE-1)
 			return;
+#endif
 
 		/* add to the end of the stack */
-		stack[i].shader = sd->shader;
-		stack[i].object = sd->object;
-		stack[i].t_enter = 0.0f;
-		stack[i].t_exit = FLT_MAX;
-		stack[i+1].shader = SHADER_NONE;
+		state->volume_stack[i].shader = sd->shader;
+		state->volume_stack[i].object = sd->object;
+		state->volume_stack[i].t_enter = 0.0f;
+		state->volume_stack[i].t_exit = FLT_MAX;
+		state->volume_stack[i+1].shader = SHADER_NONE;
 	}
 }
 
@@ -1310,9 +1327,11 @@ ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd
 ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
                                                           ShaderData *stack_sd,
                                                           Ray *ray,
-                                                          ccl_addr_space VolumeStack *stack)
+                                                          ccl_addr_space PathState *state)
 {
 	kernel_assert(kernel_data.integrator.use_volumes);
+
+	ccl_addr_space VolumeStack *stack = state->volume_stack;
 
 	Ray volume_ray = *ray;
 
@@ -1331,7 +1350,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
 
 		for(uint hit = 0; hit < num_hits; ++hit, ++isect) {
 			shader_setup_from_ray(kg, stack_sd, isect, &volume_ray);
-			kernel_volume_stack_enter_exit(kg, stack_sd, stack);
+			kernel_volume_stack_enter_exit(kg, stack_sd, state);
 		}
 	}
 #  else

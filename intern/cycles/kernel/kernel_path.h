@@ -557,7 +557,7 @@ bool kernel_path_subsurface_scatter(
 					    kg,
 					    emission_sd,
 					    &volume_ray,
-					    hit_state->volume_stack);
+					    hit_state);
 				}
 #  endif  /* __VOLUME__ */
 				path_radiance_reset_indirect(L);
