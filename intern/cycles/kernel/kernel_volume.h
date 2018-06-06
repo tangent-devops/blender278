@@ -1365,7 +1365,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
                                  0x00000000/*TODO:shadow_linking*/))
 	{
 		shader_setup_from_ray(kg, stack_sd, &isect, &volume_ray);
-		kernel_volume_stack_enter_exit(kg, stack_sd, stack);
+		kernel_volume_stack_enter_exit(kg, stack_sd, state);
 
 		/* Move ray forward. */
 		volume_ray.P = ray_offset(stack_sd->P, -stack_sd->Ng);
