@@ -260,7 +260,6 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 
 	/* only interested in object that we can create meshes from */
 	if(!object_is_mesh(b_ob)) {
-		printf("%s not a mesh!\n", b_ob.name().c_str());
 		return NULL;
 	}
 
