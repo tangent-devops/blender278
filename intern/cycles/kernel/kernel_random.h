@@ -315,6 +315,9 @@ ccl_device_inline void path_state_branch(ccl_addr_space PathState *state, int br
 	state->rng_offset += PRNG_BOUNCE_NUM;
 	state->sample = state->sample*num_branches + branch;
 	state->num_samples = state->num_samples*num_branches;
+#ifdef __KERNEL_CPU__
+	state->volume_stack = &state->volume_stack_storage[0];
+#endif
 }
 
 ccl_device_inline uint lcg_state_init(ccl_addr_space PathState *state,

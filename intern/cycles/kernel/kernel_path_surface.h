@@ -191,7 +191,7 @@ ccl_device bool kernel_branched_path_surface_bounce(
 #ifdef __VOLUME__
 	/* enter/exit volume */
 	if(label & LABEL_TRANSMIT)
-		kernel_volume_stack_enter_exit(kg, sd, state->volume_stack);
+		kernel_volume_stack_enter_exit(kg, sd, state);
 #endif
 
 	/* branch RNG state */
@@ -332,7 +332,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
 #ifdef __VOLUME__
 		/* enter/exit volume */
 		if(label & LABEL_TRANSMIT)
-			kernel_volume_stack_enter_exit(kg, sd, state->volume_stack);
+			kernel_volume_stack_enter_exit(kg, sd, state);
 #endif
 		return true;
 	}
@@ -354,7 +354,7 @@ ccl_device bool kernel_path_surface_bounce(KernelGlobals *kg,
 #endif
 
 		/* enter/exit volume */
-		kernel_volume_stack_enter_exit(kg, sd, state->volume_stack);
+		kernel_volume_stack_enter_exit(kg, sd, state);
 		return true;
 	}
 #endif

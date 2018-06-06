@@ -1263,6 +1263,12 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 default=False,
                 )
 
+        cls.hide_on_missing_motion = BoolProperty(
+                name="Hide on Missing Motion",
+                description="Only render this object when it is visible for the full duration of the frame",
+                default=False,
+                )
+                
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles

@@ -23,6 +23,7 @@
 
 #ifndef __KERNEL_GPU__
 #  define __KERNEL_CPU__
+#  include <vector>
 #endif
 
 #if defined(__KERNEL_CPU__) && defined(WITH_EMBREE)
@@ -971,6 +972,7 @@ typedef struct VolumeStack {
 	   overlaps the volume bounds. */
 	float t_enter;
 	float t_exit;
+	int depth;
 } VolumeStack;
 #endif
 
@@ -1008,13 +1010,26 @@ typedef struct PathState {
 #ifdef __VOLUME__
 	int volume_bounce;
 	int volume_bounds_bounce;
+#  ifdef __KERNEL_CPU__
+	std::vector<VolumeStack> volume_stack_storage;
+	VolumeStack *volume_stack;
+#  else
 	VolumeStack volume_stack[VOLUME_STACK_SIZE];
+#  endif
 #endif
 
 #ifdef __SHADOW_TRICKS__
 	int catcher_object;
 #endif
 } PathState;
+
+ccl_device_inline size_t volume_stack_size(PathState* state) {
+#ifdef __KERNEL_CPU__
+	return state->volume_stack_storage.size();
+#else
+	return VOLUME_STACK_SIZE;
+#endif
+}
 
 /* Subsurface */
 

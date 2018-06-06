@@ -88,7 +88,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *sd, ShaderD
 			Intersection *isect = hits;
 #ifdef __VOLUME__
 			PathState ps = *state;
-			kernel_volume_branch_stack(sd->ray_length, ps.volume_stack);
+			kernel_volume_branch_stack(sd->ray_length, &ps);
 #endif
 #	ifndef __KERNEL_GPU__
 			qsort(hits, num_hits, sizeof(Intersection), intersections_compare);
@@ -151,7 +151,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *sd, ShaderD
 
 #ifdef __VOLUME__
 				/* exit/enter volume */
-				kernel_volume_stack_enter_exit(kg, /*shadow_sd*/&sd, ps.volume_stack);
+				kernel_volume_stack_enter_exit(kg, /*shadow_sd*/&sd, &ps);
 #endif
 
 				bounce++;
@@ -228,7 +228,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 			int bounce = state->transparent_bounce;
 #ifdef __VOLUME__
 			PathState ps = *state;
-			kernel_volume_branch_stack(sd->ray_length, ps.volume_stack);
+			kernel_volume_branch_stack(sd->ray_length, &ps);
 #endif
 
 			for (;;) {
@@ -298,7 +298,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 
 #ifdef __VOLUME__
 				/* exit/enter volume */
-				kernel_volume_stack_enter_exit(kg, shadow_sd, ps.volume_stack);
+				kernel_volume_stack_enter_exit(kg, shadow_sd, &ps);
 #endif
 
 				bounce++;

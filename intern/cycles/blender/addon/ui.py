@@ -929,6 +929,7 @@ class CyclesObject_PT_cycles_settings(CyclesButtonsPanel, Panel):
             flow.prop(visibility, "shadow")
 
         layout.prop(cob, "is_shadow_catcher")
+        layout.row().prop(cob, "hide_on_missing_motion")
 
         col = layout.column()
         col.label(text="Performance:")

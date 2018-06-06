@@ -235,7 +235,7 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 					    kg,
 					    emission_sd,
 					    &volume_ray,
-					    hit_state.volume_stack);
+					    &hit_state);
 				}
 #endif  /* __VOLUME__ */
 
@@ -362,39 +362,67 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 					volume_ray.t = len(sd.P - volume_ray.P);
 				}
 				if(sd.runtime_flag & SD_RUNTIME_BACKFACING) {
-					for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE; ++i) {
-						if(state.volume_stack[i].object == sd.object) {
-							state.volume_stack[i].t_exit = volume_ray.t > state.volume_stack[i].t_exit ? volume_ray.t : state.volume_stack[i].t_exit;
+					/* The ray is leaving a volume. */
+					--volumes_entered;
+					for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < (volume_stack_size(&state)-1); ++i) {
+						if(state.volume_stack[i].object == sd.object && state.volume_stack[i].depth > 0) {
+							--state.volume_stack[i].depth;
+							if(state.volume_stack[i].t_exit == FLT_MAX) {
+								state.volume_stack[i].t_exit = volume_ray.t;
+							}
+							else {
+								/* The ray should traverse front-to-back, but sometimes it doesn't?! */
+								assert(volume_ray.t >= state.volume_stack[i].t_exit);
+								state.volume_stack[i].t_exit = max(volume_ray.t, state.volume_stack[i].t_exit);
+							}
 							break;
 						}
 					}
-					--volumes_entered;
 				}
 				else {
+					/* The ray is entering a volume. */
 					int i = 0;
+					++volumes_entered;
 					bool found = false;
-					while(state.volume_stack[i].shader != SHADER_NONE && i < VOLUME_STACK_SIZE - 1) {
+					while(state.volume_stack[i].shader != SHADER_NONE && i < (volume_stack_size(&state) - 1)) {
 						if(state.volume_stack[i].object == sd.object) {
-							/* Don't add the object if it is already on the stack. */
+							bool inside = state.volume_stack[i].depth == 0 && volume_ray.t >= state.volume_stack[i].t_enter && volume_ray.t <= state.volume_stack[i].t_exit;
+							/* The ray should traverse front-to-back, but sometimes it doesn't?! */
+							assert(!inside);
+							if(state.volume_stack[i].depth > 0 || inside) {
+							/* This is a re-entry into an object we haven't left yet. */
+							++state.volume_stack[i].depth;
 							found = true;
 							break;
+							}
 						}
 						++i;
+#ifdef __KERNEL_CPU__
+						/* Grow volume stack if necessary. */
+						if(i == volume_stack_size(&state) - 1) {
+							state.volume_stack_storage.resize(state.volume_stack_storage.size() + VOLUME_STACK_SIZE);
+							state.volume_stack = &state.volume_stack_storage[0];
+						}
+#endif
 					}
-					if(!found) {
+					if(i < volume_stack_size(&state)-1 && !found) {
 						state.volume_stack[i].object = sd.object;
 						state.volume_stack[i].shader = sd.shader;
 						state.volume_stack[i].t_enter = volume_ray.t;
 						state.volume_stack[i].t_exit = FLT_MAX;
+						state.volume_stack[i].depth = 1;
 						state.volume_stack[i + 1].shader = SHADER_NONE;
-						++volumes_entered;
+					}
+					else {
+						/* Not enough room on the stack. Skip this object. */
+						kernel_assert(found);
 					}
 				}
 			}
 		}
 		else {
 			int i = (kernel_data.background.volume_shader != SHADER_NONE) ? 1 : 0;
-			 while(i < VOLUME_STACK_SIZE && state.volume_stack[i].shader != SHADER_NONE) {
+			 while(i < volume_stack_size(&state) && state.volume_stack[i].shader != SHADER_NONE) {
 				if(state.volume_stack[i].t_exit != FLT_MAX) {
 					++i;
 				}
@@ -470,7 +498,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 					VolumeIntegrateResult result = kernel_volume_decoupled_scatter(kg,
 						&ps, &pray, &sd, &tp, rphase, rscatter, &volume_segment, NULL, false);
 
-					kernel_volume_branch_stack(sd.ray_length, ps.volume_stack);
+					kernel_volume_branch_stack(sd.ray_length, &ps);
 
 					(void)result;
 					kernel_assert(result == VOLUME_PATH_SCATTERED);
@@ -530,7 +558,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 				VolumeIntegrateResult result = kernel_volume_integrate(
 					kg, &ps, &sd, &volume_ray, &L, &tp, heterogeneous);
 
-				kernel_volume_branch_stack(sd.ray_length, ps.volume_stack);
+				kernel_volume_branch_stack(sd.ray_length, &ps);
 
 #ifdef __VOLUME_SCATTER__
 				if(result == VOLUME_PATH_SCATTERED) {
@@ -567,7 +595,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 			/* todo: avoid this calculation using decoupled ray marching */
 			kernel_volume_shadow(kg, &emission_sd, &state, &volume_ray, &throughput);
 #endif  /* __VOLUME_DECOUPLED__ */
-			for(int i = 0; state.volume_stack[i].shader != SHADER_NONE; ++i) {
+			for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < (volume_stack_size(&state)-1); ++i) {
 				if(state.volume_stack[i].t_exit < FLT_MAX) {
 					int j = i;
 					/* shift back next stack entries */
@@ -575,7 +603,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 						state.volume_stack[j] = state.volume_stack[j+1];
 						++j;
 					}
-					while(state.volume_stack[j].shader != SHADER_NONE);
+					while(state.volume_stack[j].shader != SHADER_NONE && j < volume_stack_size(&state));
 					--i;
 				}
 				state.volume_stack[i].t_enter = 0.0f;
@@ -702,7 +730,7 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 		PathState hit_state = state;
 
 #ifdef __VOLUME__
-		for(int i = 0; hit_state.volume_stack[i].shader != SHADER_NONE; ++i) {
+		for(int i = 0; hit_state.volume_stack[i].shader != SHADER_NONE && i < (volume_stack_size(&state)-1); ++i) {
 			hit_state.volume_stack[i].t_enter = 0.0f;
 			hit_state.volume_stack[i].t_exit = FLT_MAX;
 		}
