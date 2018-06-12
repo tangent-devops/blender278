@@ -88,6 +88,9 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *sd, ShaderD
 			Intersection *isect = hits;
 #ifdef __VOLUME__
 			PathState ps = *state;
+#ifdef __KERNEL_CPU__
+			ps.volume_stack = &ps.volume_stack_storage[0];
+#endif
 			kernel_volume_branch_stack(sd->ray_length, &ps);
 #endif
 #	ifndef __KERNEL_GPU__
@@ -228,6 +231,9 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 			int bounce = state->transparent_bounce;
 #ifdef __VOLUME__
 			PathState ps = *state;
+#ifdef __KERNEL_CPU__
+			ps.volume_stack = &ps.volume_stack_storage[0];
+#endif
 			kernel_volume_branch_stack(sd->ray_length, &ps);
 #endif
 
