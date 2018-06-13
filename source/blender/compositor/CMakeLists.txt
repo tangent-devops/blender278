@@ -192,6 +192,11 @@ set(SRC
 	operations/COM_MultiAddOperation.cpp
 	operations/COM_MultiAddOperation.h
 
+	nodes/COM_MultiMixNode.cpp
+	nodes/COM_MultiMixNode.h
+	operations/COM_MultiMixOperation.cpp
+	operations/COM_MultiMixOperation.h
+
 	nodes/COM_CornerPinNode.cpp
 	nodes/COM_CornerPinNode.h
 	nodes/COM_PlaneTrackDeformNode.cpp

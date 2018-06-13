@@ -226,6 +226,9 @@ void NODE_OT_cryptomatte_remove_socket(struct wmOperatorType *ot);
 void NODE_OT_multi_add_add_socket(struct wmOperatorType *ot);
 void NODE_OT_multi_add_remove_socket(struct wmOperatorType *ot);
 
+void NODE_OT_multi_mix_add_socket(struct wmOperatorType *ot);
+void NODE_OT_multi_mix_remove_socket(struct wmOperatorType *ot);
+
 extern const char *node_context_dir[];
 
 // XXXXXX

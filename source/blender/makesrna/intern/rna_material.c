@@ -81,6 +81,11 @@ EnumPropertyItem rna_enum_multi_add_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem rna_enum_multi_mix_items[] = {
+	{0, "MULTI_MIX", 0, "Multi Mix", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"

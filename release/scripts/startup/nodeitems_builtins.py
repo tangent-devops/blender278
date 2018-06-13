@@ -327,6 +327,7 @@ compositor_node_categories = [
     CompositorNodeCategory("CMP_OP_COLOR", "Color", items=[
         NodeItem("CompositorNodeMixRGB"),
         NodeItem("CompositorNodeMultiAdd"),
+        NodeItem("CompositorNodeMultiMix"),
         NodeItem("CompositorNodeAlphaOver"),
         NodeItem("CompositorNodeInvert"),
         NodeItem("CompositorNodeCurveRGB"),

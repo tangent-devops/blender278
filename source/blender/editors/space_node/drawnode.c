@@ -165,6 +165,15 @@ static void node_buts_mix_rgb(uiLayout *layout, bContext *UNUSED(C), PointerRNA 
 	uiItemR(col, ptr, "use_clamp", 0, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_multi_mix(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *row, *col;
+
+	col = uiLayoutColumn(layout, false);
+	row = uiLayoutRow(col, true);
+	uiItemR(col, ptr, "use_clamp", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_multi_add(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row, *col;
@@ -2547,6 +2556,12 @@ static void node_composit_multi_add_ex(uiLayout *layout, bContext *UNUSED(C), Po
 	uiItemO(layout, IFACE_("Remove Input"), ICON_ZOOMOUT, "NODE_OT_multi_add_remove_socket");
 }
 
+static void node_composit_multi_mix_ex(uiLayout *layout, bContext *UNUSED(C), PointerRNA *UNUSED(ptr))
+{
+	uiItemO(layout, IFACE_("Add Input"), ICON_ZOOMIN, "NODE_OT_multi_mix_add_socket");
+	uiItemO(layout, IFACE_("Remove Input"), ICON_ZOOMOUT, "NODE_OT_multi_mix_remove_socket");
+}
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
@@ -2576,6 +2591,10 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_MULTIADD:
 			ntype->draw_buttons = node_composit_buts_multi_add;
 			ntype->draw_buttons_ex = node_composit_multi_add_ex;
+			break;
+		case CMP_NODE_MULTIMIX:
+			ntype->draw_buttons = node_composit_buts_multi_mix;
+			ntype->draw_buttons_ex = node_composit_multi_mix_ex;
 			break;
 		case CMP_NODE_FLIP:
 			ntype->draw_buttons = node_composit_buts_flip;

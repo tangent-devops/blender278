@@ -99,6 +99,13 @@ void node_multi_add_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, in
 
 }
 
+void node_multi_mix_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
+{
+	const char *name;
+	RNA_enum_name(rna_enum_multi_mix_items, node->custom1, &name);
+	BLI_strncpy(label, IFACE_(name), maxlen);
+}
+
 void node_math_label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
 {
 	const char *name;

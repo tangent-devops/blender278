@@ -925,6 +925,10 @@ typedef struct NodeMultiAdd {
 	int num_inputs;
 } NodeMultiAdd;
 
+typedef struct NodeMultiMix {
+	int num_inputs;
+} NodeMultiMix;
+
 /* script node mode */
 #define NODE_SCRIPT_INTERNAL		0
 #define NODE_SCRIPT_EXTERNAL		1

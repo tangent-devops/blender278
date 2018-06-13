@@ -2690,6 +2690,79 @@ void NODE_OT_cryptomatte_remove_socket(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ****************** Multi Mix - Add Socket ****************** */
+static int node_multi_mix_add_socket_exec(bContext *C)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	PointerRNA ptr = CTX_data_pointer_get(C, "node");
+	bNodeTree *ntree = NULL;
+	bNode *node = NULL;
+	if (ptr.data) {
+		node = ptr.data;
+		ntree = ptr.id.data;
+	}
+	else if (snode && snode->edittree) {
+		ntree = snode->edittree;
+		node = nodeGetActive(snode->edittree);
+	}
+	if (!node || node->type != CMP_NODE_MULTIMIX)
+		return OPERATOR_CANCELLED;
+	ntreeCompositeMultiMixNodeAddSocket(ntree, node);
+	
+	snode_notify(C, snode);
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_multi_mix_add_socket(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Multi Mix Socket";
+	ot->description = "Add a new input to a multi mix node";
+	ot->idname = "NODE_OT_multi_mix_add_socket";
+	/* callbacks */
+	ot->exec = node_multi_mix_add_socket_exec;
+	ot->poll = composite_node_editable;
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ****************** Multi Mix - Remove Socket ****************** */
+
+static int node_multi_mix_remove_socket_exec(bContext *C)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	PointerRNA ptr = CTX_data_pointer_get(C, "node");
+	bNodeTree *ntree = NULL;
+	bNode *node = NULL;
+	if (ptr.data) {
+		node = ptr.data;
+		ntree = ptr.id.data;
+	}
+	else if (snode && snode->edittree) {
+		ntree = snode->edittree;
+		node = nodeGetActive(snode->edittree);
+	}
+	if (!node || node->type != CMP_NODE_MULTIMIX)
+		return OPERATOR_CANCELLED;
+	if (!ntreeCompositeMultiMixNodeRemoveSocket(ntree, node))
+		return OPERATOR_CANCELLED;
+	snode_notify(C, snode);
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_multi_mix_remove_socket(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Multi Mix Socket";
+	ot->description = "Remove input from a multi mix node";
+	ot->idname = "NODE_OT_multi_mix_remove_socket";
+	/* callbacks */
+	ot->exec = node_multi_mix_remove_socket_exec;
+	ot->poll = composite_node_editable;
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ****************** Multi Add - Add Socket ****************** */
 static int node_multi_add_add_socket_exec(bContext *C)
 {
