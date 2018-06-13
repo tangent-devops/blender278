@@ -1008,9 +1008,9 @@ CacheReader *CacheReader_open_alembic_object(AbcArchiveHandle *handle, CacheRead
 	ImportSettings settings;
 	AbcObjectReader *abc_reader = create_reader(iobject, settings);
 
-	if (!abc_reader) {
-		return reader;
-	}
+	//if (!abc_reader) {
+	//	return reader;
+	//}
 
 	abc_reader->object(object);
 	abc_reader->incref();
