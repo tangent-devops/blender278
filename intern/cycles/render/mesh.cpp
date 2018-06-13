@@ -456,7 +456,7 @@ Mesh::Mesh()
 
 	geometry_flags = GEOMETRY_NONE;
 
-	volume_isovalue = 0.001f;
+	volume_isovalue = 0.0f;
 	has_volume = false;
 	has_surface_bssrdf = false;
 
