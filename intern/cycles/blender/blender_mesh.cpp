@@ -287,7 +287,7 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 	if(!b_domain)
 		return;
 
-	mesh->volume_isovalue = b_domain.clipping();
+	mesh->volume_isovalue = 0.0f; /*b_domain.clipping() */;
 
 	Attribute *attr = mesh->attributes.add(std);
 	VoxelAttribute *volume_data = attr->data_voxel();
