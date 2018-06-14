@@ -1225,18 +1225,8 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
                                           int path_flag,
                                           ShaderContext ctx)
 {
-	/* motion blur for volumes */
-	if((kernel_data.cam.shuttertime != -1.0f) && sd->object != OBJECT_NONE) {
-		/* Calling find_attribute every time is probably excessive. This should be cached. */
-		AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_VOLUME_VELOCITY);
-		if (desc.offset != ATTR_STD_NOT_FOUND) {
-			float velocity_scale = __uint_as_float(kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK) * SHADER_SIZE + 15));
-			velocity_scale *= kernel_data.cam.shuttertime * kernel_data.cam.inv_fps;
-			/* Assume velocity data to be in meters/second. */
-			float3 velocity = primitive_attribute_float3(kg, sd, desc, NULL, NULL) * velocity_scale;
-			sd->P = sd->P - velocity * (sd->time - 0.5f + kernel_data.cam.motion_offset * velocity_scale);
-		}
-	}
+	const bool do_motion = kernel_data.cam.shuttertime != -1.0f;
+
 
 	/* reset closures once at the start, we will be accumulating the closures
 	 * for all volumes in the stack into a single array of closures */
@@ -1256,6 +1246,18 @@ ccl_device_inline void shader_eval_volume(KernelGlobals *kg,
 		sd->object = stack[i].object;
 		sd->shader = stack[i].shader;
 
+		/* motion blur for volumes */
+		if(do_motion && sd->object != OBJECT_NONE) {
+			/* Calling find_attribute every time is probably excessive. This should be cached. */
+			AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_VOLUME_VELOCITY);
+			if (desc.offset != ATTR_STD_NOT_FOUND) {
+				float velocity_scale = __uint_as_float(kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK) * SHADER_SIZE + 15));
+				velocity_scale *= kernel_data.cam.shuttertime * kernel_data.cam.inv_fps;
+				/* Assume velocity data to be in meters/second. */
+				float3 velocity = primitive_attribute_float3(kg, sd, desc, NULL, NULL) * velocity_scale;
+				sd->P = sd->P - velocity * (sd->time - 0.5f + kernel_data.cam.motion_offset * velocity_scale);
+			}
+		}
 		sd->object_flag &= ~SD_OBJECT_FLAGS;
 		sd->shader_flag &= ~SD_SHADER_FLAGS;
 		sd->shader_flag |= kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK) * SHADER_SIZE);
