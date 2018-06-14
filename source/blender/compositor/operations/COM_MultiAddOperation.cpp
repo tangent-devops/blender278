@@ -51,9 +51,6 @@ void MultiAddOperation::executePixelSampled(float output[4], float x, float y, P
 	float inputValue[4];
 	float inputColor[4];
 
-	SocketReader *final_input =  inputs[arrsize - 1];
-	float value = inputValue[0];
-
 	for (size_t i = 0; i < inputs.size(); i++) {
 		inputs[i]->readSampled(inputColor, x, y, sampler);
 		if (i == 0) {

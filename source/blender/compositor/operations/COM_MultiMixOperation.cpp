@@ -49,18 +49,19 @@ void MultiMixOperation::executePixelSampled(float output[4], float x, float y, P
 	float inputValue[4];
 	float inputColor[4];
 
+	inputs[0]->readSampled(inputColor, x, y, sampler);
+
 	output[0] = output[1] = output[2] = 0;
 
-	SocketReader *final_input = inputs[arrsize - 1];
-	float value = inputValue[0];
+	float value = inputColor[0];
 
-	for (size_t i = 0; i < inputs.size(); i++) {
+	for (size_t i = 1; i <= inputs.size()-1; i++) {
 		inputs[i]->readSampled(inputColor, x, y, sampler);
-		if (i == 0)
+		if (i == 1)
 			output[3] = inputColor[3];
-		output[0] += inputColor[0]*powf(value, ceil(((float)(i-1))/i))*powf(1-value, arrsize-i);
-		output[1] += inputColor[1]*powf(value, ceil(((float)(i-1))/i))*powf(1-value, arrsize-i);
-		output[2] += inputColor[2]*powf(value, ceil(((float)(i-1))/i))*powf(1-value, arrsize-i);
+		output[0] += inputColor[0]*powf(value, ceil(((float)(i-1))/i))*powf(1.0-value, (arrsize-1)-i);
+		output[1] += inputColor[1]*powf(value, ceil(((float)(i-1))/i))*powf(1.0-value, (arrsize-1)-i);
+		output[2] += inputColor[2]*powf(value, ceil(((float)(i-1))/i))*powf(1.0-value, (arrsize-1)-i);
 	}
 
 	clampIfNeeded(output);
