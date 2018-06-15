@@ -350,10 +350,12 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		object_updated = true;
 	}
 
-	bool hide_on_missing_motion = get_boolean(cobject, "hide_on_missing_motion");
-	if(hide_on_missing_motion != object->hide_on_missing_motion) {
-		object->hide_on_missing_motion = hide_on_missing_motion;
-		object_updated = true;
+	if(!b_dupli_ob || !b_dupli_ob.particle_system()) {
+		bool hide_on_missing_motion = get_boolean(cobject, "hide_on_missing_motion");
+		if (hide_on_missing_motion != object->hide_on_missing_motion) {
+			object->hide_on_missing_motion = hide_on_missing_motion;
+			object_updated = true;
+		}
 	}
 
 	/* sync the asset name for Cryptomatte */
