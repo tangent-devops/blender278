@@ -1301,6 +1301,8 @@ static int ptcache_smoke_openvdb_extern_read(struct OpenVDBReader *reader, void 
 		VECSUB(sds->res_max, res_max, res_min);
 	}
 
+	VECCOPY(sds->res_offset, res_min);
+
 	sub_v3_v3v3(sds->global_size, sds->p1, sds->p0);
 
 	if ((sds->res_max[0] <= sds->res_min[0]) ||

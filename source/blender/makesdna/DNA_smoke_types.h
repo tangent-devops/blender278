@@ -221,7 +221,8 @@ typedef struct SmokeDomainSettings {
 	struct OpenVDBModifierData *vdb;
 
 	float clipping;
-	float pad3;
+
+	int res_offset[3];
 } SmokeDomainSettings;
 
 
