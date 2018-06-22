@@ -316,7 +316,7 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 #ifdef WITH_OPENVDB
 	bool has_vdb = false;
 	BL::OpenVDBModifier b_vdb = object_vdb_modifier_find(b_ob);
-	if(b_vdb) {
+	if(b_vdb && b_domain && b_vdb.sparse_render()) {
 		int index = 0;
 		switch(std) {
 			case ATTR_STD_VOLUME_FLAME:
@@ -347,14 +347,14 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 
 		/* Look up the name of the grid. */
 		string grid_name;
-		if(string_endswith(b_vdb.filepath(), ".vdb")) {
-			openvdb::io::File file(b_vdb.filepath());
+		if(string_endswith(b_vdb.abs_path(), ".vdb")) {
+			openvdb::io::File file(b_vdb.abs_path());
 			try {
 				file.open();
 				openvdb::MetaMap::Ptr meta_map = file.getMetadata();
 				if(meta_map && (*meta_map)["FFXVDBVersion"]) {
-					front = 1;
-					up = 2;
+					front = 2;
+					up = 1;
 				}
 				openvdb::GridPtrVecPtr grids = file.readAllGridMetadata();
 				if(index < grids->size()) {
@@ -369,26 +369,31 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 			}
 		}
 		if(!grid_name.empty()) {
-			bool inv_z = up >= 3;
-			bool inv_y = front < 3;
+			bool inv[3];
+			inv[2] = up >= 3;
+			inv[1]= front < 3;
 			up %= 3;
 			front %= 3;
 			short right = 3 - (up + front);
-			bool inv_x = !(inv_z == inv_y);
+			inv[0] = !(inv[2] == inv[1]);
 
 			if (up < front) {
-				inv_x = !inv_x;
+				inv[0] = !inv[0];
 			}
 			if (abs(up - front) == 2) {
-				inv_x = !inv_x;
+				inv[0] = !inv[0];
 			}
 
-			/* Bake the axis selection from the modifier to a transformation matrix. */
+			/* Bake a matrix to get from normalized coordinates to index space. */
 			Transform tfm = transform_identity();
-			tfm.x = vdb_axis_to_float4(right, inv_x);
-			tfm.y = vdb_axis_to_float4(front, inv_y);
-			tfm.z = vdb_axis_to_float4(up, inv_z);
-			volume_data->slot = -(volume_manager->add_volume(b_vdb.abs_path(), grid_name, tfm) + 2);
+			tfm.x = vdb_axis_to_float4(right, inv[right]);
+			tfm.y = vdb_axis_to_float4(front, inv[front]);
+			tfm.z = vdb_axis_to_float4(up, inv[up]);
+
+			int3 resolution = get_int3(b_domain.domain_resolution());
+			int3 offset = get_int3(b_domain.index_offset());
+			int3 axis = make_int3(inv[0] ? -right-1 : right, inv[1] ? -front-1 : front, inv[2] ? -up-1 : up);
+			volume_data->slot = -(volume_manager->add_volume(b_vdb.abs_path(), grid_name, tfm, resolution, offset, axis) + 2);
 			volume_data->vol_manager = volume_manager;
 			volume_data->manager = NULL; 
 			has_vdb = true;
@@ -431,7 +436,7 @@ static void create_mesh_volume_attributes(Scene *scene,
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_VELOCITY))
 		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	else if (scene->need_motion() == Scene::MOTION_BLUR) {
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
+//		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	}
 }
 

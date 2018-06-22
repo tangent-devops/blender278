@@ -27,6 +27,7 @@
 #include "render/nodes.h"
 #include "render/object.h"
 #include "render/scene.h"
+#include "render/volume.h"
 
 #include "kernel/osl/osl_globals.h"
 
@@ -1971,7 +1972,7 @@ void MeshManager::device_update_preprocess(Device *device,
 					volume_images_updated = true;
 				}
 
-				create_volume_mesh(scene, dscene, mesh, progress);
+				create_volume_mesh(scene, device, dscene, mesh, progress);
 			}
 		}
 	}
@@ -2031,9 +2032,9 @@ void MeshManager::device_update_displacement_images(Device *device,
 }
 
 void MeshManager::device_update_volume_images(Device *device,
-                                              DeviceScene *dscene,
-											  Scene *scene,
-											  Progress& progress)
+	DeviceScene *dscene,
+	Scene *scene,
+	Progress& progress)
 {
 	progress.set_status("Updating Volume Images");
 	TaskPool pool;
@@ -2052,7 +2053,7 @@ void MeshManager::device_update_volume_images(Device *device,
 
 			VoxelAttribute *voxel = attr.data_voxel();
 
-			if(voxel->slot != -1) {
+			if(voxel->slot > -1) {
 				volume_images.insert(voxel->slot);
 			}
 		}
@@ -2061,13 +2062,19 @@ void MeshManager::device_update_volume_images(Device *device,
 	image_manager->device_prepare_update(dscene);
 	foreach(int slot, volume_images) {
 		pool.push(function_bind(&ImageManager::device_update_slot,
-								image_manager,
-								device,
-		                        dscene,
-								scene,
-								slot,
-								&progress));
+			image_manager,
+			device,
+			dscene,
+			scene,
+			slot,
+			&progress));
 	}
+
+	VolumeManager *volume_manager = scene->volume_manager;
+	if(volume_manager) {
+		volume_manager->device_update(device, dscene, scene, progress);
+	}
+
 	pool.wait_work();
 }
 

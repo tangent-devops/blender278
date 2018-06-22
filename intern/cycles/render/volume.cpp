@@ -57,7 +57,7 @@ static inline void catch_exceptions()
 #endif
 }
 
-int VolumeManager::add_volume(const std::string &filename, const std::string &name, const Transform& tfm)
+int VolumeManager::add_volume(const std::string &filename, const std::string &name, const Transform& tfm, const int3 resolution, const int3 offset, const int3 axis)
 {
 	int slot = -1;
 
@@ -67,7 +67,7 @@ int VolumeManager::add_volume(const std::string &filename, const std::string &na
 
 	try {
 		if(is_openvdb_file(filename)) {
-			slot = add_openvdb_volume(filename, name, tfm);
+			slot = add_openvdb_volume(filename, name, tfm, resolution, offset, axis);
 		}
 	}
 	catch(...) {
@@ -99,7 +99,7 @@ bool VolumeManager::is_openvdb_file(const string& filename) const
 	return string_endswith(filename, ".vdb");
 }
 
-int VolumeManager::add_openvdb_volume(const std::string &filename, const std::string &gridname, const Transform &tfm)
+int VolumeManager::add_openvdb_volume(const std::string &filename, const std::string &gridname, const Transform &tfm, const int3 resolution, const int3 offset, const int3 axis)
 {
 	int slot = -1;
 
@@ -142,6 +142,9 @@ int VolumeManager::add_openvdb_volume(const std::string &filename, const std::st
 	grid->gridname = gridname;
 	grid->tfm = tfm;
 	grid->users = 1;
+	grid->vdb_offset = offset;
+	grid->vdb_resolution = resolution;
+	grid->axis = axis;
 
 	grids[slot] = grid;
 #else
@@ -198,7 +201,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 			file.open();
 			openvdb::GridBase::Ptr base_grid = file.readGrid(grids[i]->gridname);
 			if(base_grid) {
-				vdb->grids[i] = OpenVDBTextureBase::create_from_grid(base_grid, grids[i]->tfm);
+				vdb->grids[i] = OpenVDBTextureBase::create_from_grid(base_grid, grids[i]->tfm, grids[i]->vdb_resolution, grids[i]->vdb_offset);
 				VLOG(1) << base_grid->getName().c_str() << " memory usage: " << base_grid->memUsage() / 1024.0f << " kilobytes.\n";
 			}
 		}

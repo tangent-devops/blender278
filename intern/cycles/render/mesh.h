@@ -343,7 +343,7 @@ public:
 
 	void tag_update(Scene *scene);
 
-	void create_volume_mesh(Scene *scene, DeviceScene *dscene, Mesh *mesh, Progress &progress);
+	void create_volume_mesh(Scene *scene, Device *device, DeviceScene *dscene, Mesh *mesh, Progress &progress);
 
 protected:
 	/* Calculate verts/triangles/curves offsets in global arrays. */

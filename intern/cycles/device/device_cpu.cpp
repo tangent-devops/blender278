@@ -753,7 +753,8 @@ public:
 #endif
 
 #ifdef WITH_OPENVDB
-		VDBVolume::thread_init(&kg, &vdb_globals);
+		kg.vdb = &vdb_globals;
+		kg.vdb_tdata = VDBVolume::thread_init(&vdb_globals);
 #endif
 
 		if(kg.oiio && kg.oiio->tex_sys) {
@@ -823,7 +824,7 @@ public:
 #endif
 
 #ifdef WITH_OPENVDB
-		VDBVolume::thread_free(&kg);
+		VDBVolume::thread_free(kg.vdb_tdata);
 #endif
 	}
 
@@ -874,7 +875,8 @@ protected:
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
 #ifdef WITH_OPENVDB
-		VDBVolume::thread_init(&kg, &vdb_globals);
+		kg.vdb = &vdb_globals;
+		kg.vdb_tdata = VDBVolume::thread_init(&vdb_globals);
 #endif
 		if(kg.oiio && kg.oiio->tex_sys) {
 			kg.oiio_tdata = kg.oiio->tex_sys->get_perthread_info();
@@ -903,7 +905,7 @@ protected:
 		OSLShader::thread_free(kg);
 #endif
 #ifdef WITH_OPENVDB
-		VDBVolume::thread_free(kg);
+		VDBVolume::thread_free(kg->vdb_tdata);
 #endif
 	}
 
