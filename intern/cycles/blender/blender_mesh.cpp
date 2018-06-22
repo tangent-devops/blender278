@@ -316,32 +316,32 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 #ifdef WITH_OPENVDB
 	bool has_vdb = false;
 	BL::OpenVDBModifier b_vdb = object_vdb_modifier_find(b_ob);
-	if(b_vdb && b_domain && !b_vdb.in_memory_render()) {
-		int index = 0;
-		switch(std) {
-			case ATTR_STD_VOLUME_FLAME:
-				index = b_vdb.flame();
-				break;
-			case ATTR_STD_VOLUME_HEAT:
-				index = b_vdb.heat();
-				break;
-			case ATTR_STD_VOLUME_COLOR:
-				index = b_vdb.color1();
-				break;
-			case ATTR_STD_VOLUME_DENSITY:
-				index = b_vdb.density();
-				break;
-			case ATTR_STD_VOLUME_VELOCITY:
-				index = b_vdb.velocity1();
-				break;
-			default:
-				assert(0);
-				break;
-		}
+	int index = 0;
+	switch(std) {
+	case ATTR_STD_VOLUME_FLAME:
+		index = b_vdb.flame();
+		break;
+	case ATTR_STD_VOLUME_HEAT:
+		index = b_vdb.heat();
+		break;
+	case ATTR_STD_VOLUME_COLOR:
+		index = b_vdb.color1();
+		break;
+	case ATTR_STD_VOLUME_DENSITY:
+		index = b_vdb.density();
+		break;
+	case ATTR_STD_VOLUME_VELOCITY:
+		index = b_vdb.velocity1();
+		break;
+	default:
+		assert(0);
+		break;
+	}
 
-		/* Values from the VDB modifier are 1 based, indices in the OpenVDB API are 0 based. */
-		--index;
+	/* Values from the VDB modifier are 1 based, indices in the OpenVDB API are 0 based. */
+	--index;
 
+	if(index >= 0 && b_vdb && b_domain && !b_vdb.in_memory_render()) {
 		short front = b_vdb.front_axis();
 		short up = b_vdb.up_axis();
 
@@ -357,9 +357,16 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 					up = 1;
 				}
 				openvdb::GridPtrVecPtr grids = file.readAllGridMetadata();
-				if(index < grids->size()) {
-					openvdb::GridBase::Ptr grid = grids->at(index);
-					grid_name = grid->getName();
+
+				size_t num = min(index, grids->size());
+				openvdb::io::File::NameIterator name_iter = file.beginName();
+				size_t i = 0;
+				while(i < num) {
+					++i; 
+					++name_iter;
+				}
+				if(i < grids->size()) {
+					grid_name = name_iter.gridName();
 				}
 			}
 			catch(const openvdb::Exception& e) {
@@ -436,7 +443,7 @@ static void create_mesh_volume_attributes(Scene *scene,
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_VELOCITY))
 		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	else if (scene->need_motion() == Scene::MOTION_BLUR) {
-//		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, scene->volume_manager, ATTR_STD_VOLUME_VELOCITY, frame);
 	}
 }
 
