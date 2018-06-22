@@ -165,12 +165,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	/* XXX Hack to avoid passing stuff all over the place. */
 	if (flag & MOD_APPLY_RENDER) {
-		if (vdbmd->flags & MOD_OPENVDB_SPARSE_RENDER) {
-			vdbmd->flags |= MOD_OPENVDB_HIDE_VOLUME;
-			vdbmd->flags &= ~MOD_OPENVDB_SIMPLIFY_RENDER;
+		if (vdbmd->flags & MOD_OPENVDB_IN_MEMORY_RENDER) {
+			vdbmd->flags &= ~MOD_OPENVDB_HIDE_VOLUME;
 		}
 		else {
-			vdbmd->flags &= ~MOD_OPENVDB_HIDE_VOLUME;
+			vdbmd->flags |= MOD_OPENVDB_HIDE_VOLUME;
+			vdbmd->flags &= ~MOD_OPENVDB_SIMPLIFY_RENDER;
 		}
 
 		if (!(vdbmd->flags & MOD_OPENVDB_SIMPLIFY_RENDER)) {
