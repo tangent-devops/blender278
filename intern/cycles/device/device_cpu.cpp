@@ -24,6 +24,9 @@
 #  include <OSL/oslexec.h>
 #endif
 
+#include "kernel/vdb/vdb_globals.h"
+#include "kernel/vdb/vdb_thread.h"
+
 #include "kernel/kernel_oiio_globals.h"
 
 #include "device/device.h"
@@ -39,8 +42,6 @@
 #include "kernel/osl/osl_shader.h"
 #include "kernel/osl/osl_globals.h"
 
-#include "kernel/vdb/vdb_globals.h"
-#include "kernel/vdb/vdb_thread.h"
 
 #include "render/buffers.h"
 
