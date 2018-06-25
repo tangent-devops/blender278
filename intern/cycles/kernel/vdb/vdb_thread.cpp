@@ -176,11 +176,11 @@ inline bool OpenVDBGridThreadData<FloatGrid>::sample(float x, float y, float z, 
 	float value = 0.0f;
 	switch (sampling) {
 		case VDBVolume::OPENVDB_SAMPLE_BOX:
-			value = box_sampler->wsSample(p);
+			value = box_sampler->isSample(p);
 			break;
 		case VDBVolume::OPENVDB_SAMPLE_POINT:
 		default:
-			value = point_sampler->wsSample(p);
+			value = point_sampler->isSample(p);
 	}
 	*r = *g = *b = value;
 	return true;
@@ -199,11 +199,11 @@ inline bool OpenVDBGridThreadData<Vec3SGrid>::sample(float x, float y, float z, 
 	if (staggered) {
 		switch (sampling) {
 			case VDBVolume::OPENVDB_SAMPLE_POINT:
-				value = stag_point_sampler->wsSample(p);
+				value = stag_point_sampler->isSample(p);
 				break;
 			case VDBVolume::OPENVDB_SAMPLE_BOX:
 			default:
-				value = stag_box_sampler->wsSample(p);
+				value = stag_box_sampler->isSample(p);
 				break;
 		}
 	}
