@@ -1108,13 +1108,12 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 	if(!kernel_data.cam.is_inside_volume || ray == NULL) {
 		/* Camera is guaranteed to be in the air, only take background volume
 		 * into account in this case.
-		 */
+		 */   
 		if(kernel_data.background.volume_shader != SHADER_NONE) {
 			stack[0].shader = kernel_data.background.volume_shader;
 			stack[0].object = PRIM_NONE;
 			stack[0].t_enter = 0.0f;
-			stack[0].t_enter = FLT_MAX;
-			stack[1].shader = SHADER_NONE;
+			stack[0].t_exit = FLT_MAX;
 		}
 		else {
 			stack[0].shader = SHADER_NONE;
