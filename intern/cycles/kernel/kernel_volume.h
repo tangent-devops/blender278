@@ -1114,6 +1114,7 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 			stack[0].object = PRIM_NONE;
 			stack[0].t_enter = 0.0f;
 			stack[0].t_exit = FLT_MAX;
+			stack[1].shader = SHADER_NONE;
 		}
 		else {
 			stack[0].shader = SHADER_NONE;
