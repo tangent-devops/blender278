@@ -296,9 +296,11 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 	Ray volume_ray = ray;
 	int volumes_entered = 0;
 
-	/* is there a heterogenous world shader? */
-	if(state.volume_stack[0].shader != SHADER_NONE && volume_stack_is_heterogeneous(kg, state.volume_stack)) {
-		++volumes_entered;
+	/* Is there camera already inside of a heterogenous shader? */
+	for(int i = 0; state.volume_stack[i].shader != SHADER_NONE && i < (volume_stack_size(&state) - 1); ++i) {
+		if(volume_stack_is_heterogeneous(kg, state.volume_stack)) {
+			++volumes_entered;
+		}
 	}
 
 #ifdef __KERNEL_DEBUG__
@@ -391,10 +393,10 @@ ccl_device void kernel_branched_path_integrate(KernelGlobals *kg, uint rng_hash,
 							/* The ray should traverse front-to-back, but sometimes it doesn't?! */
 							assert(!inside);
 							if(state.volume_stack[i].depth > 0 || inside) {
-							/* This is a re-entry into an object we haven't left yet. */
-							++state.volume_stack[i].depth;
-							found = true;
-							break;
+								/* This is a re-entry into an object we haven't left yet. */
+								++state.volume_stack[i].depth;
+								found = true;
+								break;
 							}
 						}
 						++i;
